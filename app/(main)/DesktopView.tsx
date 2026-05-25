@@ -609,7 +609,7 @@ export default function DesktopView({
             </div>
           </main>
 
-          <aside className="h-full grid grid-rows-[auto_48px_auto_minmax(0,1fr)] gap-4">
+          <aside className="flex h-full flex-col gap-4">
             <WeatherNotice
               initialSnapshot={weatherSnapshot ?? null}
               variant="desktop"
@@ -635,33 +635,43 @@ export default function DesktopView({
               </div>
             )}
 
-            <div className={`overflow-hidden rounded-2xl bg-white shadow-sm transition-opacity ${isLoadingMonth ? 'opacity-50' : ''}`}>
-              <div className="flex h-[72px] items-center justify-between px-4">
+            <div className={`shrink-0 rounded-2xl bg-white shadow-sm transition-opacity ${isLoadingMonth ? 'opacity-50' : ''}`}>
+              <div className="flex h-[72px] items-center justify-between px-5">
                 <button onClick={() => navigateMonth(-1)} disabled={isLoadingMonth}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F4FA] text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-40">
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F0F4FA] text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-40">
                   <ChevronLeft size={18} />
                 </button>
                 <span className="text-[20px] font-bold text-[#1A3A8F] select-none">
                   {year}年{month}月
                 </span>
                 <button onClick={() => navigateMonth(1)} disabled={!canGoNext || isLoadingMonth}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F4FA] text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-40">
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F0F4FA] text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-40">
                   <ChevronRight size={18} />
                 </button>
               </div>
 
-              <div className="mx-4 border-t border-[#E8EEF8]" />
+              <div className="mx-5 border-t border-[#E8EEF8]" />
 
-              <div className="grid grid-cols-7 px-4 pt-3">
+              <div
+                className="grid bg-white px-5 pt-3"
+                style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+              >
                 {DOW_LABELS.map((l, i) => (
-                  <div key={l} className={`flex h-8 items-center justify-center text-[12px] font-semibold ${i === 6 ? 'text-red-300' : 'text-gray-400'}`}>{l}</div>
+                  <div key={l} className={`flex h-8 min-w-0 items-center justify-center text-[12px] font-semibold ${i === 6 ? 'text-red-300' : 'text-gray-400'}`}>{l}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1.5 px-4 pb-4">
+              <div
+                className="grid bg-white px-5 pb-5"
+                style={{
+                  gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                  columnGap: '6px',
+                  rowGap: '8px',
+                }}
+              >
                 {Array.from({ length: weeks * 7 }, (_, index) => {
                   const day = index - offset + 1;
-                  if (day < 1 || day > lastDay) return <div key={index} className="h-11" />;
+                  if (day < 1 || day > lastDay) return <div key={index} className="h-11 min-w-0" />;
 
                   const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const { hasRecs } = getDaySummary(date);
@@ -676,7 +686,7 @@ export default function DesktopView({
                   return (
                     <button key={date}
                       onClick={() => setSelectedDate(date)}
-                      className={`flex h-11 flex-col items-center justify-center gap-1 rounded-lg transition-colors
+                      className={`flex h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg transition-colors
                         ${isSelected ? 'bg-[#3370FF] text-white shadow-sm' : isToday ? 'bg-blue-50 text-[#3370FF]' : 'hover:bg-blue-50/60'}
                         ${restDay && !isSelected ? 'opacity-45' : ''}
                         ${isFuture && !isSelected ? 'opacity-40' : ''}`}>
@@ -698,7 +708,7 @@ export default function DesktopView({
               </div>
             </div>
 
-            <div aria-hidden="true" className="min-h-0 rounded-2xl border border-[#E8EEF8] bg-[#F8FAFF]" />
+            <div aria-hidden="true" className="min-h-0 flex-1 rounded-2xl border border-[#E8EEF8] bg-[#F8FAFF]" />
           </aside>
         </div>
 
