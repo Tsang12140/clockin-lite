@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+
+export const dynamic = 'force-dynamic';
 import './globals.css';
 import { getFactoryShortName } from '@/lib/tenant';
 

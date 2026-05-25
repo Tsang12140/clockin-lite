@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
 import BottomNav from '@/components/BottomNav';
 import AIAssistant from '@/components/AIAssistant';
 import ActivityLogger from '@/components/ActivityLogger';
