@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+html, body {
+  background-color: #F0F4FA;
+  color: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* iOS-style segmented control */
+.seg-ctrl {
+  display: flex;
+  background: #E8EEF8;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg-ctrl button {
+  flex: 1;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #6B7280;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.seg-ctrl button.active {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  color: #1A3A8F;
+  font-weight: 500;
+}
+
+.ai-assistant {
+  font-weight: 400;
+}
+
+.audit-log-page {
+  font-weight: 400;
+}
+
+/* Quick prompts row: no scrollbar on mobile, thin bar on desktop */
+.prompts-scroll {
+  scrollbar-width: none;
+}
+.prompts-scroll::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .prompts-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #D1D5DB transparent;
+    padding-bottom: 4px;
+  }
+  .prompts-scroll::-webkit-scrollbar {
+    display: block;
+    height: 3px;
+  }
+  .prompts-scroll::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 2px;
+  }
+}
+
+/* Always-visible horizontal scrollbar for summary table */
+.scrollbar-visible {
+  scrollbar-width: thin;
+  scrollbar-color: #D1D5DB transparent;
+}
+.scrollbar-visible::-webkit-scrollbar {
+  height: 4px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 2px;
+}
+
+/* Identifier font for codes/IDs */
+.font-identifier {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.875em;
+  letter-spacing: 0.03em;
+}
+
+@keyframes completion-wave-check {
+  0%   { opacity: 0; transform: translateY(3px) scale(0.7); }
+  28%  { opacity: 1; transform: translateY(0) scale(1.08); }
+  48%  { opacity: 1; transform: translateY(0) scale(1); }
+  78%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-1px) scale(0.96); }
+}
+@keyframes completion-wave-ring {
+  0%   { opacity: 0.34; transform: scale(0.72); }
+  72%  { opacity: 0; transform: scale(1.82); }
+  100% { opacity: 0; transform: scale(1.82); }
+}
+.completion-wave-check {
+  opacity: 0;
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+  box-shadow: 0 6px 14px rgba(34, 197, 94, 0.22);
+  animation: completion-wave-check 0.82s ease-out both;
+  will-change: transform, opacity;
+}
+.completion-wave-check::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 1px solid rgba(34, 197, 94, 0.34);
+  animation: completion-wave-ring 0.82s ease-out both;
+}
+.completion-wave-check > svg {
+  position: relative;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .completion-wave-check {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ── Weather background animations ─────────────────────────── */
+
+.weather-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Sunny */
+.weather-bg--sunny { background: linear-gradient(135deg, #FFF8DC 0%, #FFFDE7 60%, #FFF9C4 100%); }
+@keyframes sun-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.25; }
+  50%       { transform: scale(1.15); opacity: 0.40; }
+}
+@keyframes orb-float {
+  0%, 100% { transform: translateY(0)   scale(1); }
+  50%       { transform: translateY(-6px) scale(1.08); }
+}
+.sun-core {
+  position: absolute; right: 18px; top: 6px;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: radial-gradient(circle, #FFD54F 30%, #FFCA28 70%, transparent 100%);
+  animation: sun-pulse 3s ease-in-out infinite;
+}
+.sun-orb { position: absolute; border-radius: 50%; opacity: 0.18; }
+.sun-orb--0 { width: 28px; height: 28px; right: 60px; top: 2px;  background: #FFD740; animation: orb-float 4s ease-in-out infinite; }
+.sun-orb--1 { width: 16px; height: 16px; right: 30px; top: 36px; background: #FFAB40; animation: orb-float 5s ease-in-out infinite 0.6s; }
+.sun-orb--2 { width: 20px; height: 20px; right: 80px; top: 20px; background: #FFE57F; animation: orb-float 3.5s ease-in-out infinite 1.2s; }
+.sun-orb--3 { width: 10px; height: 10px; right: 10px; top: 18px; background: #FFD740; animation: orb-float 6s ease-in-out infinite 0.3s; }
+
+/* Rainy */
+.weather-bg--rainy { background: linear-gradient(160deg, #DDEEFF 0%, #EBF3FF 100%); }
+.weather-bg--heavy-rainy { background: linear-gradient(160deg, #D8E2EC 0%, #E5ECF4 100%); }
+.weather-bg--rainstorm {
+  background:
+    linear-gradient(160deg, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0.05)),
+    linear-gradient(160deg, #CAD4DF 0%, #E3E9F0 100%);
+}
+.weather-bg--thunderstorm {
+  background:
+    linear-gradient(160deg, rgba(15, 23, 42, 0.18), rgba(30, 41, 59, 0.06)),
+    linear-gradient(160deg, #CDD6E0 0%, #E8EEF5 100%);
+}
+@keyframes lightning-flash {
+  0%, 55%, 100% { opacity: 0; filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); }
+  58%           { opacity: 0.95; filter: drop-shadow(0 0 9px rgba(250, 204, 21, 0.46)); }
+  60%           { opacity: 0.12; filter: drop-shadow(0 0 2px rgba(250, 204, 21, 0.18)); }
+  63%           { opacity: 0.74; filter: drop-shadow(0 0 7px rgba(250, 204, 21, 0.38)); }
+  67%           { opacity: 0; filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); }
+  82%           { opacity: 0.62; filter: drop-shadow(0 0 7px rgba(250, 204, 21, 0.32)); }
+  85%           { opacity: 0; filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); }
+}
+.lightning-bolt {
+  position: absolute;
+  width: 18px;
+  height: 32px;
+  background: #FACC15;
+  clip-path: polygon(48% 0, 100% 0, 66% 38%, 100% 38%, 32% 100%, 48% 55%, 12% 55%);
+  opacity: 0;
+  animation: lightning-flash 2.7s steps(1, end) infinite;
+  will-change: opacity;
+}
+.lightning-bolt--main { right: 28px; top: 5px; width: 18px; height: 34px; animation-delay: 0s; }
+.lightning-bolt--side { right: 70px; top: 16px; width: 13px; height: 24px; opacity: 0; animation-delay: 0.58s; }
+.lightning-bolt--small { right: 10px; top: 28px; width: 10px; height: 18px; opacity: 0; animation-delay: 1.16s; }
+@keyframes rain-fall {
+  0%   { transform: translateY(-12px) scaleY(0.5); opacity: 0; }
+  15%  { opacity: 0.62; }
+  85%  { opacity: 0.62; }
+  100% { transform: translateY(84px)  scaleY(1.28); opacity: 0; }
+}
+.rain-drop {
+  position: absolute; top: 0;
+  width: 1.5px; height: 12px; border-radius: 1px;
+  background: linear-gradient(to bottom, transparent, #90CAF9);
+  animation: rain-fall 0.9s linear infinite;
+}
+.weather-bg--heavy-rainy .rain-drop { width: 1.8px; height: 16px; background: linear-gradient(to bottom, transparent, #6F8FAE); }
+.weather-bg--rainstorm .rain-drop,
+.weather-bg--thunderstorm .rain-drop { width: 2px; height: 20px; background: linear-gradient(to bottom, transparent, rgba(77, 104, 132, 0.78)); }
+.weather-bg .rain-drop--dark { background: linear-gradient(to bottom, transparent, rgba(30, 41, 59, 0.46)); }
+
+/* Snowy */
+.weather-bg--snowy { background: linear-gradient(160deg, #E8F4FD 0%, #F0F8FF 100%); }
+@keyframes snow-fall {
+  0%   { transform: translateY(-12px) translateX(0);   opacity: 0; }
+  15%  { opacity: 0.75; }
+  50%  { transform: translateY(38px)  translateX(6px); }
+  85%  { opacity: 0.75; }
+  100% { transform: translateY(76px)  translateX(-4px); opacity: 0; }
+}
+.snow-flake {
+  position: absolute; top: 0;
+  color: #90CAF9;
+  animation: snow-fall 2s ease-in-out infinite;
+  user-select: none;
+}
+
+/* Cloudy */
+.weather-bg--cloudy { background: linear-gradient(160deg, #EEF2FF 0%, #F5F7FF 100%); }
+@keyframes cloud-drift {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(8px); }
+}
+.cloud {
+  position: absolute; border-radius: 50px;
+  background: rgba(200, 210, 240, 0.35);
+}
+.cloud--1 { width: 80px; height: 22px; right: 20px; top: 10px; animation: cloud-drift 8s ease-in-out infinite; }
+.cloud--2 { width: 50px; height: 14px; right: 60px; top: 28px; animation: cloud-drift 11s ease-in-out infinite 2s; }
+
+/* Foggy */
+.weather-bg--foggy { background: linear-gradient(160deg, #ECEFF1 0%, #F5F5F5 100%); }
+@keyframes fog-drift {
+  0%, 100% { transform: translateX(0); opacity: 0.30; }
+  50%      { transform: translateX(18px); opacity: 0.52; }
+}
+.fog-line {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(176, 190, 197, 0.34);
+  filter: blur(1px);
+  animation: fog-drift 7s ease-in-out infinite;
+}
+.fog-line--1 { top: 11px; animation-delay: 0s; }
+.fog-line--2 { top: 26px; left: 44px; animation-delay: 1.2s; }
+.fog-line--3 { top: 41px; right: 52px; animation-delay: 2.1s; }

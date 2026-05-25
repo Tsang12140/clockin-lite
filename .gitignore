@@ -1,0 +1,59 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.claude/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.dev-server.log
+
+# local archives and screenshots
+/1.md
+/*.zip
+/*.rar
+/*.7z
+/*.jpg
+/*.jpeg
+/*.png
+
+# personal / private files (kept locally, not for open source)
+/private/
+/backups/
+*.code-workspace
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+.runtime/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
