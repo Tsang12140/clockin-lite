@@ -635,31 +635,33 @@ export default function DesktopView({
               </div>
             )}
 
-            <div className={`bg-white rounded-2xl shadow-sm p-4 transition-opacity ${isLoadingMonth ? 'opacity-50' : ''}`}>
-              <div className="flex items-center justify-between mb-3">
+            <div className={`overflow-hidden rounded-2xl bg-white shadow-sm transition-opacity ${isLoadingMonth ? 'opacity-50' : ''}`}>
+              <div className="flex h-[72px] items-center justify-between px-4">
                 <button onClick={() => navigateMonth(-1)} disabled={isLoadingMonth}
-                  className="w-9 h-9 rounded-full bg-[#F0F4FA] flex items-center justify-center text-gray-500 hover:bg-gray-200 disabled:opacity-40 transition-colors">
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F4FA] text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-40">
                   <ChevronLeft size={18} />
                 </button>
                 <span className="text-[20px] font-bold text-[#1A3A8F] select-none">
                   {year}年{month}月
                 </span>
                 <button onClick={() => navigateMonth(1)} disabled={!canGoNext || isLoadingMonth}
-                  className="w-9 h-9 rounded-full bg-[#F0F4FA] flex items-center justify-center text-gray-500 hover:bg-gray-200 disabled:opacity-40 transition-colors">
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0F4FA] text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-40">
                   <ChevronRight size={18} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-7 mb-1">
+              <div className="mx-4 border-t border-[#E8EEF8]" />
+
+              <div className="grid grid-cols-7 px-4 pt-3">
                 {DOW_LABELS.map((l, i) => (
-                  <div key={l} className={`text-center py-2 text-[12px] font-semibold ${i === 6 ? 'text-red-300' : 'text-gray-400'}`}>{l}</div>
+                  <div key={l} className={`flex h-8 items-center justify-center text-[12px] font-semibold ${i === 6 ? 'text-red-300' : 'text-gray-400'}`}>{l}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1.5 px-4 pb-4">
                 {Array.from({ length: weeks * 7 }, (_, index) => {
                   const day = index - offset + 1;
-                  if (day < 1 || day > lastDay) return <div key={index} className="h-14" />;
+                  if (day < 1 || day > lastDay) return <div key={index} className="h-11" />;
 
                   const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const { hasRecs } = getDaySummary(date);
@@ -674,7 +676,7 @@ export default function DesktopView({
                   return (
                     <button key={date}
                       onClick={() => setSelectedDate(date)}
-                      className={`h-14 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors
+                      className={`flex h-11 flex-col items-center justify-center gap-1 rounded-lg transition-colors
                         ${isSelected ? 'bg-[#3370FF] text-white shadow-sm' : isToday ? 'bg-blue-50 text-[#3370FF]' : 'hover:bg-blue-50/60'}
                         ${restDay && !isSelected ? 'opacity-45' : ''}
                         ${isFuture && !isSelected ? 'opacity-40' : ''}`}>
