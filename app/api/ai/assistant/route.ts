@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         let answerCount = 0;
         let responseMode = 'rules';
         try {
-          for await (const result of answerAttendanceAssistantStream(message, history, lastPlan, pageUrl)) {
+          for await (const result of answerAttendanceAssistantStream(message, history, lastPlan, pageUrl, session)) {
             answerCount += 1;
             responseMode = result.mode;
             const event = `data: ${JSON.stringify({ type: 'answer', ...result })}\n\n`;

@@ -8,7 +8,31 @@ export interface SessionData {
   userPhone?: string;
   role?: string;
   developerUnlocked?: boolean;
+  aiConfig?: SessionAIConfig;
+  aiPresets?: SessionAIPreset[];
 }
+
+export type SessionAIConfig = {
+  enabled: boolean;
+  provider: string;
+  apiStyle: 'openai-chat';
+  baseUrl: string;
+  model: string;
+  rulesPrompt: string;
+  apiKey?: string;
+  updatedAt: string;
+};
+
+export type SessionAIPreset = {
+  id: string;
+  notes: string;
+  provider: string;
+  baseUrl: string;
+  model: string;
+  rulesPrompt: string;
+  apiKey?: string;
+  createdAt: string;
+};
 
 const sessionOptions = {
   password: process.env.SESSION_SECRET!,

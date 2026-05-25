@@ -9,7 +9,6 @@ import {
 } from '@/lib/ai/config';
 import { recordAuditLog } from '@/lib/audit';
 import { getSession } from '@/lib/session';
-import { getTenantConfig } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +33,7 @@ function badRequest(message: string, status = 400) {
 export async function POST(request: Request) {
   try {
     const body = await request.json() as AIConfigRequest;
-    const [session, tenantConfig] = await Promise.all([getSession(), getTenantConfig()]);
+    const session = await getSession();
 
     if (session.isLoggedIn !== true) {
       return badRequest('请先登录。', 401);
@@ -55,7 +54,7 @@ export async function POST(request: Request) {
         rulesPrompt: typeof body.rulesPrompt === 'string' ? body.rulesPrompt : '',
         apiKey: typeof body.apiKey === 'string' ? body.apiKey : undefined,
         presetId: typeof body.presetId === 'string' ? body.presetId : undefined,
-      });
+      }, session);
       await recordAuditLog({
         action: 'save_ai_config',
         actionLabel: '修改 AI 配置',
@@ -70,7 +69,7 @@ export async function POST(request: Request) {
         baseUrl: typeof body.baseUrl === 'string' ? body.baseUrl : '',
         apiKey: typeof body.apiKey === 'string' && body.apiKey.trim() ? body.apiKey : undefined,
         presetId: typeof body.presetId === 'string' ? body.presetId : undefined,
-      });
+      }, session);
       return Response.json(result);
     }
 
@@ -82,12 +81,12 @@ export async function POST(request: Request) {
         model: typeof body.model === 'string' ? body.model : undefined,
         apiKey: typeof body.apiKey === 'string' && body.apiKey.trim() ? body.apiKey : undefined,
         presetId: typeof body.presetId === 'string' ? body.presetId : undefined,
-      });
+      }, session);
       return Response.json(result);
     }
 
     if (body.action === 'list-presets') {
-      const presets = await listPresets();
+      const presets = await listPresets(session);
       return Response.json({ ok: true, presets });
     }
 
@@ -105,7 +104,7 @@ export async function POST(request: Request) {
         rulesPrompt: typeof body.rulesPrompt === 'string' ? body.rulesPrompt : '',
         apiKey: typeof body.apiKey === 'string' && body.apiKey.trim() ? body.apiKey : undefined,
         fromPresetId: typeof body.presetId === 'string' ? body.presetId : undefined,
-      });
+      }, session);
       await recordAuditLog({
         action: 'save_ai_preset',
         actionLabel: '保存 AI 预设',
@@ -118,7 +117,7 @@ export async function POST(request: Request) {
     if (body.action === 'delete-preset') {
       const id = typeof body.id === 'string' ? body.id.trim() : '';
       if (!id) return badRequest('缺少预设 ID。');
-      await deletePreset(id);
+      await deletePreset(id, session);
       await recordAuditLog({
         action: 'delete_ai_preset',
         actionLabel: '删除 AI 预设',
@@ -128,7 +127,7 @@ export async function POST(request: Request) {
       return Response.json({ ok: true });
     }
 
-    const status = await getAIConfigStatus();
+    const status = await getAIConfigStatus(session);
     return Response.json({ ok: true, status });
   } catch (error) {
     console.error('[ai-config] request failed', error);

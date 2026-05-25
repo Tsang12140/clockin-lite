@@ -1,6 +1,9 @@
 ﻿import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import type { IronSession } from 'iron-session';
+import { getSession, type SessionData } from '@/lib/session';
+import { isVirtualDbEnabled } from '@/lib/virtualDb';
 
 export type AIProviderConfig = {
   enabled: boolean;
@@ -48,6 +51,8 @@ type StoredAIConfig = Omit<AIProviderConfig, 'apiKey'> & {
   updatedAt: string;
   presets?: PresetEntry[];
 };
+
+export type AIConfigSession = IronSession<SessionData>;
 
 const DEV_PASSWORD_SALT = 'clockin-ai-dev-v1';
 const CONFIG_PATH = path.join(process.cwd(), '.runtime', 'ai-config.json');
@@ -115,6 +120,31 @@ function decryptValue(config: StoredAIConfig) {
   return decrypted.toString('utf8');
 }
 
+async function resolveSession(session?: AIConfigSession): Promise<AIConfigSession | undefined> {
+  if (!isVirtualDbEnabled()) return undefined;
+  return session ?? getSession();
+}
+
+function storedFromSession(session: AIConfigSession): StoredAIConfig {
+  const stored = session.aiConfig;
+  if (!stored) return DEFAULT_CONFIG;
+  return {
+    ...DEFAULT_CONFIG,
+    enabled: stored.enabled,
+    provider: stored.provider || DEFAULT_CONFIG.provider,
+    apiStyle: 'openai-chat',
+    baseUrl: stored.baseUrl || DEFAULT_CONFIG.baseUrl,
+    model: stored.model || DEFAULT_CONFIG.model,
+    rulesPrompt: stored.rulesPrompt ?? DEFAULT_CONFIG.rulesPrompt,
+    updatedAt: stored.updatedAt || '',
+  };
+}
+
+function apiKeyFromStoredConfig(config: StoredAIConfig, session?: AIConfigSession): string | undefined {
+  if (isVirtualDbEnabled()) return session?.aiConfig?.apiKey;
+  return decryptValue(config);
+}
+
 export function verifyDeveloperPassword(password: string) {
   const envPassword = process.env.DEV_PASSWORD;
   const actual = Buffer.from(sha256(`${DEV_PASSWORD_SALT}:${password}`), 'hex');
@@ -124,7 +154,10 @@ export function verifyDeveloperPassword(password: string) {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-async function readStoredConfig(): Promise<StoredAIConfig> {
+async function readStoredConfig(session?: AIConfigSession): Promise<StoredAIConfig> {
+  const runtimeSession = await resolveSession(session);
+  if (runtimeSession) return storedFromSession(runtimeSession);
+
   try {
     const raw = await readFile(CONFIG_PATH, 'utf8');
     return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
@@ -133,8 +166,9 @@ async function readStoredConfig(): Promise<StoredAIConfig> {
   }
 }
 
-export async function getAIConfigStatus(): Promise<AIConfigStatus> {
-  const config = await readStoredConfig();
+export async function getAIConfigStatus(session?: AIConfigSession): Promise<AIConfigStatus> {
+  const runtimeSession = await resolveSession(session);
+  const config = await readStoredConfig(runtimeSession);
   const envHasKey = Boolean(process.env.AI_API_KEY);
   return {
     enabled: config.enabled || process.env.AI_ENABLED === 'true',
@@ -143,14 +177,15 @@ export async function getAIConfigStatus(): Promise<AIConfigStatus> {
     baseUrl: process.env.AI_BASE_URL || config.baseUrl,
     model: process.env.AI_MODEL || config.model,
     rulesPrompt: config.rulesPrompt,
-    hasApiKey: envHasKey || Boolean(config.encryptedApiKey),
+    hasApiKey: envHasKey || Boolean(apiKeyFromStoredConfig(config, runtimeSession) || config.encryptedApiKey),
     updatedAt: config.updatedAt || null,
   };
 }
 
-export async function getAIProviderConfig(): Promise<AIProviderConfig | null> {
-  const stored = await readStoredConfig();
-  const apiKey = process.env.AI_API_KEY || decryptValue(stored);
+export async function getAIProviderConfig(session?: AIConfigSession): Promise<AIProviderConfig | null> {
+  const runtimeSession = await resolveSession(session);
+  const stored = await readStoredConfig(runtimeSession);
+  const apiKey = process.env.AI_API_KEY || apiKeyFromStoredConfig(stored, runtimeSession);
   const enabled = stored.enabled || process.env.AI_ENABLED === 'true';
   const baseUrl = process.env.AI_BASE_URL || stored.baseUrl;
   const model = process.env.AI_MODEL || stored.model;
@@ -168,11 +203,12 @@ export async function getAIProviderConfig(): Promise<AIProviderConfig | null> {
   };
 }
 
-export async function getAIAvailability(): Promise<AIAvailability> {
-  const stored = await readStoredConfig();
+export async function getAIAvailability(session?: AIConfigSession): Promise<AIAvailability> {
+  const runtimeSession = await resolveSession(session);
+  const stored = await readStoredConfig(runtimeSession);
   return {
     enabled: stored.enabled || process.env.AI_ENABLED === 'true',
-    hasApiKey: Boolean(process.env.AI_API_KEY || stored.encryptedApiKey),
+    hasApiKey: Boolean(process.env.AI_API_KEY || apiKeyFromStoredConfig(stored, runtimeSession) || stored.encryptedApiKey),
     baseUrl: process.env.AI_BASE_URL || stored.baseUrl,
     model: process.env.AI_MODEL || stored.model,
   };
@@ -186,17 +222,43 @@ export async function saveAIProviderConfig(input: {
   rulesPrompt: string;
   apiKey?: string;
   presetId?: string;
-}) {
-  const current = await readStoredConfig();
+}, session?: AIConfigSession) {
+  const runtimeSession = await resolveSession(session);
+  const current = await readStoredConfig(runtimeSession);
+  const provider = input.provider.trim() || 'custom';
+  const baseUrl = input.baseUrl.trim();
+  const model = input.model.trim();
+  const rulesPrompt = input.rulesPrompt.trim();
+  const updatedAt = new Date().toISOString();
+
+  if (runtimeSession) {
+    const preset = input.presetId
+      ? runtimeSession.aiPresets?.find(item => item.id === input.presetId)
+      : undefined;
+    const apiKey = input.apiKey?.trim() || preset?.apiKey || runtimeSession.aiConfig?.apiKey;
+    runtimeSession.aiConfig = {
+      enabled: input.enabled,
+      provider,
+      apiStyle: 'openai-chat',
+      baseUrl,
+      model,
+      rulesPrompt,
+      apiKey,
+      updatedAt,
+    };
+    await runtimeSession.save();
+    return getAIConfigStatus(runtimeSession);
+  }
+
   const next: StoredAIConfig = {
     ...current,
     enabled: input.enabled,
-    provider: input.provider.trim() || 'custom',
+    provider,
     apiStyle: 'openai-chat',
-    baseUrl: input.baseUrl.trim(),
-    model: input.model.trim(),
-    rulesPrompt: input.rulesPrompt.trim(),
-    updatedAt: new Date().toISOString(),
+    baseUrl,
+    model,
+    rulesPrompt,
+    updatedAt,
   };
 
   if (input.apiKey?.trim()) {
@@ -217,14 +279,22 @@ export async function saveAIProviderConfig(input: {
 
 // ---- Preset helpers ----
 
-function generatePresetId(existing: PresetEntry[]): string {
+function generatePresetId(existing: Array<{ id: string }>): string {
   const now = new Date();
   const prefix = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
   const todayCount = existing.filter(p => p.id.startsWith(prefix)).length;
   return `${prefix}${String(todayCount + 1).padStart(2, '0')}`;
 }
 
-export async function listPresets(): Promise<PresetSummary[]> {
+export async function listPresets(session?: AIConfigSession): Promise<PresetSummary[]> {
+  const runtimeSession = await resolveSession(session);
+  if (runtimeSession) {
+    return (runtimeSession.aiPresets ?? []).map(({ apiKey, ...rest }) => ({
+      ...rest,
+      hasApiKey: Boolean(apiKey),
+    }));
+  }
+
   const config = await readStoredConfig();
   return (config.presets ?? []).map(({ encryptedApiKey, apiKeyIv, apiKeyTag, ...rest }) => ({
     ...rest,
@@ -240,7 +310,36 @@ export async function savePreset(input: {
   rulesPrompt: string;
   apiKey?: string;
   fromPresetId?: string;
-}): Promise<PresetSummary> {
+}, session?: AIConfigSession): Promise<PresetSummary> {
+  const runtimeSession = await resolveSession(session);
+  if (runtimeSession) {
+    const presets = runtimeSession.aiPresets ?? [];
+    const source = input.fromPresetId ? presets.find(p => p.id === input.fromPresetId) : undefined;
+    const apiKey = input.apiKey?.trim() || source?.apiKey;
+    const entry = {
+      id: generatePresetId(presets),
+      notes: input.notes.trim(),
+      provider: input.provider.trim() || 'custom',
+      baseUrl: input.baseUrl.trim(),
+      model: input.model.trim(),
+      rulesPrompt: input.rulesPrompt.trim(),
+      apiKey,
+      createdAt: new Date().toISOString(),
+    };
+    runtimeSession.aiPresets = [...presets, entry];
+    await runtimeSession.save();
+    const summary = {
+      id: entry.id,
+      notes: entry.notes,
+      provider: entry.provider,
+      baseUrl: entry.baseUrl,
+      model: entry.model,
+      rulesPrompt: entry.rulesPrompt,
+      createdAt: entry.createdAt,
+    };
+    return { ...summary, hasApiKey: Boolean(apiKey) };
+  }
+
   const config = await readStoredConfig();
   const presets = config.presets ?? [];
   const id = generatePresetId(presets);
@@ -274,7 +373,14 @@ export async function savePreset(input: {
   return { ...summary, hasApiKey: Boolean(encryptedApiKey) };
 }
 
-export async function deletePreset(id: string): Promise<void> {
+export async function deletePreset(id: string, session?: AIConfigSession): Promise<void> {
+  const runtimeSession = await resolveSession(session);
+  if (runtimeSession) {
+    runtimeSession.aiPresets = (runtimeSession.aiPresets ?? []).filter(p => p.id !== id);
+    await runtimeSession.save();
+    return;
+  }
+
   const config = await readStoredConfig();
   const next: StoredAIConfig = {
     ...config,
@@ -288,13 +394,18 @@ export async function fetchAvailableModels(input: {
   baseUrl: string;
   apiKey?: string;
   presetId?: string;
-}): Promise<{ ok: true; models: string[] } | { ok: false; message: string }> {
-  const stored = await readStoredConfig();
+}, session?: AIConfigSession): Promise<{ ok: true; models: string[] } | { ok: false; message: string }> {
+  const runtimeSession = await resolveSession(session);
+  const stored = await readStoredConfig(runtimeSession);
 
-  let resolvedApiKey: string | undefined = process.env.AI_API_KEY || decryptValue(stored);
+  let resolvedApiKey: string | undefined = process.env.AI_API_KEY || apiKeyFromStoredConfig(stored, runtimeSession);
   if (!input.apiKey && input.presetId) {
-    const preset = (stored.presets ?? []).find(p => p.id === input.presetId);
-    if (preset) resolvedApiKey = decryptValue(preset as unknown as StoredAIConfig);
+    if (runtimeSession) {
+      resolvedApiKey = runtimeSession.aiPresets?.find(p => p.id === input.presetId)?.apiKey;
+    } else {
+      const preset = (stored.presets ?? []).find(p => p.id === input.presetId);
+      if (preset) resolvedApiKey = decryptValue(preset as unknown as StoredAIConfig);
+    }
   } else if (input.apiKey?.trim()) {
     resolvedApiKey = input.apiKey.trim();
   }
@@ -326,13 +437,18 @@ export async function fetchAvailableModels(input: {
   }
 }
 
-export async function testAIProviderConfig(input?: Partial<AIProviderConfig> & { presetId?: string }) {
-  const stored = await readStoredConfig();
+export async function testAIProviderConfig(input?: Partial<AIProviderConfig> & { presetId?: string }, session?: AIConfigSession) {
+  const runtimeSession = await resolveSession(session);
+  const stored = await readStoredConfig(runtimeSession);
 
-  let resolvedApiKey: string | undefined = process.env.AI_API_KEY || decryptValue(stored);
+  let resolvedApiKey: string | undefined = process.env.AI_API_KEY || apiKeyFromStoredConfig(stored, runtimeSession);
   if (!input?.apiKey && input?.presetId) {
-    const preset = (stored.presets ?? []).find(p => p.id === input.presetId);
-    if (preset) resolvedApiKey = decryptValue(preset as unknown as StoredAIConfig);
+    if (runtimeSession) {
+      resolvedApiKey = runtimeSession.aiPresets?.find(p => p.id === input.presetId)?.apiKey;
+    } else {
+      const preset = (stored.presets ?? []).find(p => p.id === input.presetId);
+      if (preset) resolvedApiKey = decryptValue(preset as unknown as StoredAIConfig);
+    }
   }
 
   const saved = {

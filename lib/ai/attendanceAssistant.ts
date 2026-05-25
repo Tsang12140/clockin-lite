@@ -1,6 +1,6 @@
 import { getActiveEmployees, getAttendanceForRange, getMonthAdjustedWorkdayDates, getMonthHolidayDates, getMonthlySalary } from '@/lib/queries';
 import { monthRange, todayString } from '@/lib/utils';
-import { getAIAvailability, getAIProviderConfig, type AIProviderConfig } from '@/lib/ai/config';
+import { getAIAvailability, getAIProviderConfig, type AIConfigSession, type AIProviderConfig } from '@/lib/ai/config';
 import { getFactsCache, setFactsCache } from '@/lib/ai/factsCache';
 import { getWorkSchedule } from '@/lib/tenant';
 import type { WorkScheduleConfig } from '@/db/schema';
@@ -1262,8 +1262,8 @@ async function answerWithAIPlan(
   return executePlan(plans[0], question, employees, config, history);
 }
 
-async function callConfiguredAI(question: string, facts: unknown) {
-  const config = await getAIProviderConfig();
+async function callConfiguredAI(question: string, facts: unknown, session?: AIConfigSession) {
+  const config = await getAIProviderConfig(session);
   if (!config) return null;
 
   return callAIChat(config, [
@@ -1292,6 +1292,7 @@ export async function* answerAttendanceAssistantStream(
   history: AssistantHistoryItem[] = [],
   lastPlan: AssistantPlan | null = null,
   pageUrl?: string | null,
+  session?: AIConfigSession,
 ): AsyncGenerator<AssistantResponse> {
   const cleaned = message.trim();
   if (!cleaned) {
@@ -1299,7 +1300,7 @@ export async function* answerAttendanceAssistantStream(
     return;
   }
 
-  const aiConfig = await getAIProviderConfig();
+  const aiConfig = await getAIProviderConfig(session);
   if (isModelQuestion(cleaned)) {
     yield { reply: modelReply(aiConfig), actions: [], mode: aiConfig ? 'ai' : 'rules' };
     return;
@@ -1333,7 +1334,7 @@ export async function* answerAttendanceAssistantStream(
       throw error;
     }
   } else {
-    const availability = await getAIAvailability();
+    const availability = await getAIAvailability(session);
     if (availability.hasApiKey && !availability.enabled) {
       yield aiDisabledResponse();
       return;
@@ -1382,7 +1383,7 @@ export async function* answerAttendanceAssistantStream(
   }
 
   if (!aiConfig) {
-    const availability = await getAIAvailability();
+    const availability = await getAIAvailability(session);
     if (!availability.hasApiKey) {
       yield aiNotConfiguredResponse();
       return;
@@ -1412,7 +1413,7 @@ export async function* answerAttendanceAssistantStream(
         status: item.status,
         statusLabel: item.statusLabel,
       })),
-    });
+    }, session);
   } catch (error) {
     if (isAIProviderConnectionError(error)) {
       yield aiConnectionFailedResponse();

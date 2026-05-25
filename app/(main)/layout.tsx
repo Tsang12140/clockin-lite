@@ -10,12 +10,12 @@ import { getAIAvailability } from '@/lib/ai/config';
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   if (!(await isSetupCompleted())) redirect('/setup');
-  const [session, factoryShortName, aiAvailability] = await Promise.all([
-    getSession(),
-    getFactoryShortName(),
-    getAIAvailability(),
-  ]);
+  const session = await getSession();
   if (!session.isLoggedIn) redirect('/login');
+  const [factoryShortName, aiAvailability] = await Promise.all([
+    getFactoryShortName(),
+    getAIAvailability(session),
+  ]);
   const aiUserKey = session.userId || session.userPhone || 'anonymous';
   const aiConfigured = aiAvailability.hasApiKey && Boolean(aiAvailability.baseUrl && aiAvailability.model);
   const aiEnabled = aiAvailability.enabled && aiConfigured;
