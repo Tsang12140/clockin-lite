@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { createHash } from 'node:crypto';
+import { isVirtualDbEnabled } from '@/lib/virtualDb';
 
 export type AuditLogItem = {
   id: number;
@@ -149,7 +150,7 @@ function cutoffDate() {
 }
 
 function shouldShowDemoAuditData() {
-  return process.env.NODE_ENV !== 'production';
+  return process.env.NODE_ENV !== 'production' || isVirtualDbEnabled();
 }
 
 function minutesAgo(minutes: number) {
@@ -252,6 +253,7 @@ function demoLogs(): AuditLogItem[] {
 }
 
 async function ensureAuditTables() {
+  if (isVirtualDbEnabled()) return;
   if (!tableReady) {
     tableReady = (async () => {
       try {
@@ -323,6 +325,7 @@ export async function recordAuditLog(input: {
   detail?: Record<string, unknown> | null;
   user?: UserOverride;
 }) {
+  if (isVirtualDbEnabled()) return;
   try {
     await ensureAuditTables();
 
@@ -386,6 +389,7 @@ export async function recordAuditLog(input: {
 }
 
 export async function listAuditLogs(limit = 200): Promise<AuditLogItem[]> {
+  if (isVirtualDbEnabled()) return demoLogs().slice(0, Math.max(1, limit));
   try {
     await ensureAuditTables();
     const safeLimit = Math.min(500, Math.max(50, Math.floor(limit)));
@@ -436,6 +440,7 @@ export async function listAuditLogs(limit = 200): Promise<AuditLogItem[]> {
 }
 
 export async function listAuditFingerprints(limit = 80): Promise<AuditFingerprintItem[]> {
+  if (isVirtualDbEnabled()) return demoFingerprints().slice(0, Math.max(1, limit));
   try {
     await ensureAuditTables();
     const safeLimit = Math.min(200, Math.max(20, Math.floor(limit)));
@@ -464,6 +469,7 @@ export async function listAuditFingerprints(limit = 80): Promise<AuditFingerprin
 }
 
 export async function updateAuditFingerprintNote(id: string, note: string) {
+  if (isVirtualDbEnabled()) return;
   await ensureAuditTables();
   await db.execute(sql`
     UPDATE clockin.audit_fingerprints

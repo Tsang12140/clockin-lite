@@ -3,6 +3,13 @@ import { sql, eq } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { tenantConfig as tenantConfigTable, type TenantConfig, type WorkScheduleConfig } from '@/db/schema';
 import { normalizeOvertimeMultipliers, type OvertimeMultipliers } from '@/lib/overtime';
+import {
+  getVirtualTenantConfig,
+  isVirtualDbEnabled,
+  isVirtualSetupCompleted,
+  markVirtualSetupCompleted,
+  patchVirtualTenantConfig,
+} from '@/lib/virtualDb';
 
 // ============================================================
 // Table bootstrap (lazy "CREATE TABLE IF NOT EXISTS" style,
@@ -12,6 +19,7 @@ import { normalizeOvertimeMultipliers, type OvertimeMultipliers } from '@/lib/ov
 let tablesReady: Promise<void> | null = null;
 
 export async function ensureTenantTables(): Promise<void> {
+  if (isVirtualDbEnabled()) return;
   if (!tablesReady) {
     tablesReady = (async () => {
       try {
@@ -242,7 +250,7 @@ export async function ensureTenantTables(): Promise<void> {
 function encryptionKey(): Buffer {
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || isVirtualDbEnabled()) {
       return scryptSync('clockin-local-dev-only-not-for-production', 'clockin-tenant', 32);
     }
     throw new Error('SESSION_SECRET must be set');
@@ -289,6 +297,7 @@ export function invalidateTenantCache(): void {
 }
 
 export async function isSetupCompleted(): Promise<boolean> {
+  if (isVirtualDbEnabled()) return isVirtualSetupCompleted();
   if (setupCache?.value === true) return true;
   if (setupCache && Date.now() < setupCache.expiresAt) return setupCache.value;
   try {
@@ -363,6 +372,7 @@ function mapRow(row: TenantRow): TenantConfig {
 }
 
 export async function getTenantConfig(): Promise<TenantConfig | null> {
+  if (isVirtualDbEnabled()) return getVirtualTenantConfig();
   try {
     await ensureTenantTables();
     const result = await db.execute(sql`
@@ -379,6 +389,7 @@ export async function getTenantConfig(): Promise<TenantConfig | null> {
 }
 
 export async function ensureTenantRow(): Promise<void> {
+  if (isVirtualDbEnabled()) return;
   await ensureTenantTables();
   await db.execute(sql`
     INSERT INTO clockin.tenant_config (id) VALUES (1)
@@ -410,6 +421,11 @@ type UpsertInput = Partial<{
 }>;
 
 export async function upsertTenantConfig(patch: UpsertInput): Promise<void> {
+  if (isVirtualDbEnabled()) {
+    patchVirtualTenantConfig(patch as Partial<TenantConfig>);
+    invalidateTenantCache();
+    return;
+  }
   await ensureTenantRow();
   if (Object.keys(patch).length === 0) return;
   await db.update(tenantConfigTable)
@@ -419,6 +435,11 @@ export async function upsertTenantConfig(patch: UpsertInput): Promise<void> {
 }
 
 export async function markSetupCompleted(): Promise<void> {
+  if (isVirtualDbEnabled()) {
+    markVirtualSetupCompleted();
+    invalidateTenantCache();
+    return;
+  }
   await ensureTenantRow();
   await db.execute(sql`
     UPDATE clockin.tenant_config

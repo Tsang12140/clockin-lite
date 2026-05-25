@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { sql } from 'drizzle-orm';
 import { ensureTenantTables } from '@/lib/tenant';
 import { verifyPassword } from '@/lib/password';
+import { getVirtualAdminUser, isVirtualDbEnabled, markVirtualAdminLogin } from '@/lib/virtualDb';
 
 export interface AuthUser {
   id: string;
@@ -15,6 +16,15 @@ export async function authenticate(phone: string, password: string): Promise<Aut
   if (!/^\d{11}$/.test(phone) || !/^\d{6}$/.test(password)) return null;
 
   try {
+    if (isVirtualDbEnabled()) {
+      const user = getVirtualAdminUser(phone);
+      if (!user) return null;
+      const ok = await verifyPassword(password, user.passwordHash);
+      if (!ok) return null;
+      markVirtualAdminLogin(user.id);
+      return { id: String(user.id), phone: user.phone, role: user.role };
+    }
+
     await ensureTenantTables();
     const result = await db.execute(sql`
       SELECT id, phone, role, password_hash

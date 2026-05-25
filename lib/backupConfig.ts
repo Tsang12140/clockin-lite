@@ -5,6 +5,7 @@ import { backupConfig as backupConfigTable, backupRuns } from '@/db/schema';
 import type { BackupRun } from '@/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { decryptSecret, encryptSecret } from '@/lib/tenant';
+import { isVirtualDbEnabled } from '@/lib/virtualDb';
 
 let tablesReady: Promise<void> | null = null;
 
@@ -45,6 +46,7 @@ type BackupConfigRow = {
 };
 
 export async function ensureBackupTables(): Promise<void> {
+  if (isVirtualDbEnabled()) return;
   if (!tablesReady) {
     tablesReady = (async () => {
       await db.execute(sql`
@@ -123,6 +125,19 @@ function envS3Config(): S3BackupConfig | null {
 }
 
 export async function getS3BackupStatus(): Promise<S3BackupStatus> {
+  if (isVirtualDbEnabled()) {
+    return {
+      source: 'none',
+      enabled: false,
+      hasCredentials: false,
+      endpoint: '',
+      region: '',
+      bucket: '',
+      prefix: 'backups/db',
+      forcePathStyle: true,
+      updatedAt: null,
+    };
+  }
   const envConfig = envS3Config();
   if (envConfig) {
     return {
@@ -182,6 +197,7 @@ export async function getS3BackupStatus(): Promise<S3BackupStatus> {
 }
 
 export async function getResolvedS3BackupConfig(): Promise<S3BackupConfig | null> {
+  if (isVirtualDbEnabled()) return null;
   const envConfig = envS3Config();
   if (envConfig?.enabled) return envConfig;
 
@@ -214,6 +230,7 @@ export async function saveS3BackupConfig(input: {
   accessKeyId?: string;
   secretAccessKey?: string;
 }) {
+  if (isVirtualDbEnabled()) return;
   await ensureBackupConfigRow();
   const patch: Partial<typeof backupConfigTable.$inferInsert> = {
     s3Enabled: input.enabled,
@@ -237,6 +254,7 @@ export async function saveS3BackupConfig(input: {
 }
 
 export async function listBackupRuns(limit = 20): Promise<BackupRun[]> {
+  if (isVirtualDbEnabled()) return [];
   await ensureBackupTables();
   return db.select().from(backupRuns).orderBy(desc(backupRuns.startedAt)).limit(limit);
 }
@@ -252,6 +270,7 @@ export async function recordBackupRun(input: {
   startedAt?: Date;
   finishedAt?: Date;
 }) {
+  if (isVirtualDbEnabled()) return;
   await ensureBackupTables();
   await db.insert(backupRuns).values({
     provider: input.provider,

@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { isVirtualDbEnabled, virtualBackupSql } from '@/lib/virtualDb';
 
 const BACKUP_TIME_ZONE = 'Asia/Shanghai';
 const MAX_MANUAL_BACKUP_BYTES = 100 * 1024 * 1024;
@@ -94,6 +95,12 @@ export function backupFileName() {
 }
 
 export async function createManualSqlBackup(): Promise<{ filename: string; data: Buffer }> {
+  if (isVirtualDbEnabled()) {
+    return {
+      filename: backupFileName().replace('clockin-db-', 'clockin-virtual-'),
+      data: Buffer.from(virtualBackupSql(), 'utf8'),
+    };
+  }
   return {
     filename: backupFileName(),
     data: await runPgDump(),
@@ -101,6 +108,9 @@ export async function createManualSqlBackup(): Promise<{ filename: string; data:
 }
 
 export async function createLocalSqlBackup(): Promise<{ filename: string; filePath: string }> {
+  if (isVirtualDbEnabled()) {
+    throw new Error('Virtual storage does not support server-side local backup files.');
+  }
   const backupDir = process.env.BACKUP_DIR || path.join(process.cwd(), 'backups');
   await mkdir(backupDir, { recursive: true });
   const filename = backupFileName();

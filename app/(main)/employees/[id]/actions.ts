@@ -7,6 +7,13 @@ import { requireAuth } from '@/lib/requireAuth';
 import { recordAuditLog } from '@/lib/audit';
 import { replaceEmployeeAliases } from '@/lib/employeeAliases';
 import { isDemoModeEnabled } from '@/lib/demoMode';
+import {
+  addVirtualRateHistory,
+  isVirtualDbEnabled,
+  markVirtualEmployeeInactive,
+  replaceVirtualEmployeeAliases,
+  updateVirtualEmployee,
+} from '@/lib/virtualDb';
 
 async function resolvePositionId(name: string): Promise<number | null> {
   const trimmed = name.trim();
@@ -24,6 +31,20 @@ export async function updateEmployee(id: number, data: {
 }) {
   const session = await requireAuth();
   try {
+    if (isVirtualDbEnabled()) {
+      updateVirtualEmployee(id, data);
+      revalidatePath(`/employees/${id}`);
+      revalidatePath('/employees');
+      await recordAuditLog({
+        action: 'update_employee',
+        actionLabel: `修改员工：${data.name}`,
+        pageUrl: `/employees/${id}`,
+        user: session,
+        detail: { employeeId: id, name: data.name, positionName: data.positionName },
+      });
+      return { ok: true };
+    }
+
     const demoMode = await isDemoModeEnabled();
     const positionId = await resolvePositionId(data.positionName);
     await db.update(employees).set({
@@ -57,6 +78,19 @@ export async function addRateHistory(employeeId: number, data: {
 }) {
   const session = await requireAuth();
   try {
+    if (isVirtualDbEnabled()) {
+      addVirtualRateHistory(employeeId, data);
+      revalidatePath(`/employees/${employeeId}`);
+      await recordAuditLog({
+        action: 'add_rate_history',
+        actionLabel: `修改工资：员工 ${employeeId}`,
+        pageUrl: `/employees/${employeeId}`,
+        user: session,
+        detail: { employeeId, rate: data.rate, effectiveDate: data.effectiveDate },
+      });
+      return { ok: true };
+    }
+
     const demoMode = await isDemoModeEnabled();
     await db.insert(hourlyRateHistory).values({
       employeeId,
@@ -95,7 +129,9 @@ export async function addRateHistory(employeeId: number, data: {
 export async function updateEmployeeAliases(employeeId: number, aliases: string[]) {
   const session = await requireAuth();
   try {
-    const savedAliases = await replaceEmployeeAliases(employeeId, aliases);
+    const savedAliases = isVirtualDbEnabled()
+      ? replaceVirtualEmployeeAliases(employeeId, aliases)
+      : await replaceEmployeeAliases(employeeId, aliases);
     revalidatePath(`/employees/${employeeId}`);
     await recordAuditLog({
       action: 'update_employee_aliases',
@@ -114,6 +150,19 @@ export async function updateEmployeeAliases(employeeId: number, aliases: string[
 export async function markInactive(id: number, leaveDate: string) {
   const session = await requireAuth();
   try {
+    if (isVirtualDbEnabled()) {
+      markVirtualEmployeeInactive(id, leaveDate);
+      revalidatePath('/employees');
+      await recordAuditLog({
+        action: 'mark_employee_inactive',
+        actionLabel: `员工离职：${id}`,
+        pageUrl: `/employees/${id}`,
+        user: session,
+        detail: { employeeId: id, leaveDate },
+      });
+      return { ok: true };
+    }
+
     const demoMode = await isDemoModeEnabled();
     await db.update(employees)
       .set({ status: 'inactive', leaveDate })

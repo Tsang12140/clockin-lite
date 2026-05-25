@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm';
 import { isDemoModeEnabled } from '@/lib/demoMode';
 import { getMonthlySalary, getAttendanceForRange } from '@/lib/queries';
 import { monthRange } from '@/lib/utils';
+import { getVirtualAllEmployees, isVirtualDbEnabled, virtualSummaryMonths } from '@/lib/virtualDb';
 
 const TZ = 'Asia/Shanghai';
 
@@ -367,6 +368,69 @@ export type SummaryExcelResult = {
 };
 
 export async function generateSummaryExcel(): Promise<SummaryExcelResult> {
+  if (isVirtualDbEnabled()) {
+    const empRows = getVirtualAllEmployees();
+    const months = virtualSummaryMonths();
+    const monthlySheets = await Promise.all(
+      months.map(async ({ year, month }) => {
+        const lastDay = new Date(year, month, 0).getDate();
+        const { start, end } = monthRange(year, month);
+        const [salaryData, recs] = await Promise.all([
+          getMonthlySalary(year, month),
+          getAttendanceForRange(start, end),
+        ]);
+
+        type DayInfo = { hours: number | null; status: string | null; statusLabel: string | null };
+        const recsByEmp: Record<number, Record<number, DayInfo>> = {};
+        for (const r of recs) {
+          if (!r.employeeId || !r.workDate) continue;
+          const day = parseInt(r.workDate.slice(8, 10));
+          (recsByEmp[r.employeeId] ??= {})[day] = {
+            hours: r.hours ? parseFloat(String(r.hours)) : null,
+            status: r.status,
+            statusLabel: r.statusLabel,
+          };
+        }
+
+        const rows = salaryData.map(emp => {
+          const dayMap = recsByEmp[emp.id] ?? {};
+          const cells = Array.from({ length: lastDay }, (_, i) => {
+            const info = dayMap[i + 1];
+            if (!info) return { value: null as null, kind: 'missing' as CellKind };
+            if (info.status === 'worked') return { value: info.hours ?? 0, kind: 'worked' as CellKind };
+            if (info.status === 'absent') return { value: '旷' as string, kind: 'absent' as CellKind };
+            if (info.status === 'custom') return { value: info.statusLabel ?? '特' as string, kind: 'special' as CellKind };
+            return { value: STATUS_LABEL[info.status ?? ''] ?? '' as string, kind: 'special' as CellKind };
+          });
+          return { emp, cells };
+        });
+
+        const totalHours = salaryData.reduce((sum, employee) => sum + employee.totalHours, 0);
+        const totalWage = salaryData.reduce((sum, employee) => sum + employee.totalWage, 0);
+        return {
+          name: `${year}年${month}月`,
+          xml: monthSheetXml({ year, month, lastDay, rows, totalHours, totalWage }),
+        };
+      }),
+    );
+
+    const sheetCount = 1 + monthlySheets.length;
+    const sheets = [{ name: '员工信息' }, ...monthlySheets.map(sheet => ({ name: sheet.name }))];
+    const data = createZip([
+      { name: '[Content_Types].xml',        content: contentTypesXml(sheetCount) },
+      { name: '_rels/.rels',                content: rootRelsXml() },
+      { name: 'xl/workbook.xml',            content: workbookXml(sheets) },
+      { name: 'xl/_rels/workbook.xml.rels', content: workbookRelsXml(sheetCount) },
+      { name: 'xl/styles.xml',              content: stylesXml() },
+      { name: 'xl/worksheets/sheet1.xml',   content: empSheetXml(empRows) },
+      ...monthlySheets.map((sheet, index) => ({
+        name: `xl/worksheets/sheet${index + 2}.xml`,
+        content: sheet.xml,
+      })),
+    ]);
+    return { filename: summaryFilename(), data };
+  }
+
   const demoMode = await isDemoModeEnabled();
 
   // Fetch employee info and distinct months with records in parallel

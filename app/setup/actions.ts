@@ -6,6 +6,10 @@ import { ensureTenantTables, upsertTenantConfig, markSetupCompleted, isSetupComp
 import { hashPassword } from '@/lib/password';
 import { getSession } from '@/lib/session';
 import { recordAuditLog } from '@/lib/audit';
+import {
+  createVirtualAdminUser,
+  isVirtualDbEnabled,
+} from '@/lib/virtualDb';
 
 type SetupInput = {
   factoryShortName: string;
@@ -34,6 +38,34 @@ export async function completeSetup(input: SetupInput): Promise<SetupResult> {
   if (!PWD_RE.test(password)) return { ok: false, error: '密码必须是 6 位数字。' };
 
   try {
+    if (isVirtualDbEnabled()) {
+      const passwordHash = await hashPassword(password);
+      const admin = createVirtualAdminUser(phone, passwordHash);
+      if (!admin) {
+        return { ok: false, error: '该手机号已注册管理员，无法重复创建。' };
+      }
+
+      await upsertTenantConfig({ factoryShortName });
+      await markSetupCompleted();
+
+      const session = await getSession();
+      session.isLoggedIn = true;
+      session.userId     = String(admin.id);
+      session.userName   = factoryShortName;
+      session.userPhone  = admin.phone;
+      session.role       = admin.role;
+      await session.save();
+
+      await recordAuditLog({
+        action: 'setup_completed',
+        actionLabel: '完成首启向导',
+        pageUrl: '/setup',
+        user: { userId: String(admin.id), userName: factoryShortName, userPhone: admin.phone },
+      });
+
+      return { ok: true };
+    }
+
     await ensureTenantTables();
 
     // 1) Create admin

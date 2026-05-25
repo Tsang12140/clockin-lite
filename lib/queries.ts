@@ -7,6 +7,20 @@ import { getChinaAdjustedWorkdayDatesForMonth, getChinaHolidayDatesForMonth } fr
 import { calculateDailyWage } from '@/lib/overtime';
 import { normalizeWorkSchedule } from '@/lib/workSchedule';
 import { effectiveRate } from '@/lib/utils';
+import {
+  getVirtualActiveEmployees,
+  getVirtualAllEmployees,
+  getVirtualAttendanceForDate,
+  getVirtualAttendanceForRange,
+  getVirtualEmployeeDetailData,
+  getVirtualLastWorkedHours,
+  getVirtualMonthAdjustedWorkdayDates,
+  getVirtualMonthHolidayDates,
+  getVirtualMonthlySalary,
+  getVirtualPayslipData,
+  getVirtualRateHistory,
+  isVirtualDbEnabled,
+} from '@/lib/virtualDb';
 
 const devEmployees = [
   {
@@ -221,6 +235,7 @@ function devAttendanceRecords(startDate: string, endDate: string) {
 
 // Active employees with position info
 export async function getActiveEmployees() {
+  if (isVirtualDbEnabled()) return getVirtualActiveEmployees();
   try {
     const demoMode = await isDemoModeEnabled();
     const rows = await db
@@ -262,6 +277,7 @@ export async function getActiveEmployees() {
 
 // All employees (for management page)
 export async function getAllEmployees() {
+  if (isVirtualDbEnabled()) return getVirtualAllEmployees();
   try {
     const demoMode = await isDemoModeEnabled();
     const rows = await db
@@ -290,6 +306,7 @@ export async function getAllEmployees() {
 }
 
 export async function getEmployeeDetailData(empId: number) {
+  if (isVirtualDbEnabled()) return getVirtualEmployeeDetailData(empId);
   try {
     const demoMode = await isDemoModeEnabled();
     const [emp] = await db
@@ -342,6 +359,7 @@ export async function getEmployeeDetailData(empId: number) {
 
 // Attendance for a single date (for today-entry page)
 export async function getAttendanceForDate(date: string) {
+  if (isVirtualDbEnabled()) return getVirtualAttendanceForDate(date);
   try {
     const demoMode = await isDemoModeEnabled();
     return await db
@@ -356,6 +374,7 @@ export async function getAttendanceForDate(date: string) {
 
 // Attendance for a date range
 export async function getAttendanceForRange(startDate: string, endDate: string) {
+  if (isVirtualDbEnabled()) return getVirtualAttendanceForRange(startDate, endDate);
   try {
     const demoMode = await isDemoModeEnabled();
     return await db
@@ -375,6 +394,7 @@ export async function getAttendanceForRange(startDate: string, endDate: string) 
 
 // Rate history for employee(s)
 export async function getRateHistory(employeeIds?: number[]) {
+  if (isVirtualDbEnabled()) return getVirtualRateHistory(employeeIds);
   try {
     const demoMode = await isDemoModeEnabled();
     if (employeeIds?.length) {
@@ -398,6 +418,7 @@ export async function getRateHistory(employeeIds?: number[]) {
 
 // Most recent confirmed (worked) hours per employee
 export async function getLastWorkedHours(): Promise<Record<number, string>> {
+  if (isVirtualDbEnabled()) return getVirtualLastWorkedHours();
   try {
     const demoMode = await isDemoModeEnabled();
     const recs = await db
@@ -422,6 +443,7 @@ export async function getLastWorkedHours(): Promise<Record<number, string>> {
 
 // Monthly salary summary: total hours + computed wage per employee
 export async function getMonthlySalary(year: number, month: number) {
+  if (isVirtualDbEnabled()) return getVirtualMonthlySalary(year, month);
   const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const endDate = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
@@ -512,6 +534,7 @@ export async function getMonthlySalary(year: number, month: number) {
 }
 
 export async function getPayslipData(empId: number, year: number, month: number) {
+  if (isVirtualDbEnabled()) return getVirtualPayslipData(empId, year, month);
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
@@ -557,7 +580,18 @@ export async function getPayslipData(empId: number, year: number, month: number)
   } catch (e) {
     if (!canUseDevFallback(e)) throw e;
     const devEmp = devEmployees.find(emp => emp.id === empId);
-    if (!devEmp) return { emp: null, records: [], rateHistory: [], allEmps: [] };
+    if (!devEmp) {
+      return {
+        emp: null,
+        records: [],
+        rateHistory: [],
+        allEmps: [],
+        workSchedule: normalizeWorkSchedule(null),
+        legalHolidayDates: [...getChinaHolidayDatesForMonth(year, month)],
+        adjustedWorkdayDates: [...getChinaAdjustedWorkdayDatesForMonth(year, month)],
+        overtimeMultipliers: await getOvertimeMultipliers(),
+      };
+    }
     return {
       emp: withLocalPreviewEmployee({
         id: devEmp.id,
@@ -589,6 +623,7 @@ export async function getPayslipData(empId: number, year: number, month: number)
 
 // Holiday dates for a given month (returns Set of 'YYYY-MM-DD' strings)
 export async function getMonthHolidayDates(year: number, month: number): Promise<Set<string>> {
+  if (isVirtualDbEnabled()) return getVirtualMonthHolidayDates(year, month);
   const start = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
@@ -609,5 +644,6 @@ export async function getMonthHolidayDates(year: number, month: number): Promise
 }
 
 export async function getMonthAdjustedWorkdayDates(year: number, month: number): Promise<Set<string>> {
+  if (isVirtualDbEnabled()) return getVirtualMonthAdjustedWorkdayDates(year, month);
   return getChinaAdjustedWorkdayDatesForMonth(year, month);
 }

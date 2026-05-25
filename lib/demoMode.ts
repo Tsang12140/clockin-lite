@@ -1,10 +1,12 @@
 import { db } from '@/db';
 import { sql } from 'drizzle-orm';
 import { getTenantConfig, upsertTenantConfig } from '@/lib/tenant';
+import { isVirtualDbEnabled } from '@/lib/virtualDb';
 
 let demoColumnsReady: Promise<void> | null = null;
 
 export async function ensureDemoColumns(): Promise<void> {
+  if (isVirtualDbEnabled()) return;
   if (!demoColumnsReady) {
     demoColumnsReady = (async () => {
       await db.execute(sql`
@@ -32,6 +34,10 @@ export async function ensureDemoColumns(): Promise<void> {
 }
 
 export async function isDemoModeEnabled(): Promise<boolean> {
+  if (isVirtualDbEnabled()) {
+    const config = await getTenantConfig();
+    return config?.demoMode === true;
+  }
   try {
     await ensureDemoColumns();
     const config = await getTenantConfig();
@@ -42,6 +48,10 @@ export async function isDemoModeEnabled(): Promise<boolean> {
 }
 
 export async function setDemoMode(enabled: boolean): Promise<void> {
+  if (isVirtualDbEnabled()) {
+    await upsertTenantConfig({ demoMode: enabled });
+    return;
+  }
   await ensureDemoColumns();
   await upsertTenantConfig({ demoMode: enabled });
 }

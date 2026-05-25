@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { createHash } from 'node:crypto';
 import { ensureTenantTables } from '@/lib/tenant';
+import { isVirtualDbEnabled } from '@/lib/virtualDb';
 
 export const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 export const RATE_LIMIT_MAX_FAILS = 3;
@@ -16,6 +17,26 @@ type ClientContext = {
 };
 
 const LOCAL_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+type VirtualAttempt = {
+  ip: string | null;
+  deviceId: string | null;
+  fingerprintHash: string | null;
+  usernameAttempted: string;
+  attemptType: AttemptType;
+  success: boolean;
+  attemptedAt: number;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __clockinLiteVirtualLoginAttempts: VirtualAttempt[] | undefined;
+}
+
+function virtualAttempts(): VirtualAttempt[] {
+  globalThis.__clockinLiteVirtualLoginAttempts ??= [];
+  return globalThis.__clockinLiteVirtualLoginAttempts;
+}
 
 export async function getServerClientContext(): Promise<ClientContext> {
   const h = await headers();
@@ -48,6 +69,25 @@ export async function checkLoginRateLimit(args: {
   attemptType: AttemptType;
 }): Promise<LoginRateLimitResult> {
   if (isDevBypass()) return { blocked: false };
+  if (isVirtualDbEnabled()) {
+    const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+    const recent = virtualAttempts().filter(item => (
+      item.attemptType === args.attemptType
+      && item.success === false
+      && item.attemptedAt > cutoff
+    ));
+    const checks = [
+      ['ip', args.ip],
+      ['deviceId', args.deviceId],
+      ['fingerprintHash', args.fingerprintHash],
+    ] as const;
+    for (const [key, value] of checks) {
+      if (!value) continue;
+      const count = recent.filter(item => item[key] === value).length;
+      if (count >= RATE_LIMIT_MAX_FAILS) return { blocked: true };
+    }
+    return { blocked: false };
+  }
   await ensureTenantTables();
   const cutoff = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
 
@@ -108,6 +148,11 @@ export async function recordLoginAttempt(args: {
   attemptType: AttemptType;
   success: boolean;
 }): Promise<void> {
+  if (isVirtualDbEnabled()) {
+    virtualAttempts().push({ ...args, usernameAttempted: args.usernameAttempted.slice(0, 80), attemptedAt: Date.now() });
+    await pruneOldLoginAttempts();
+    return;
+  }
   try {
     await ensureTenantTables();
     await db.execute(sql`
@@ -130,6 +175,11 @@ export async function recordLoginAttempt(args: {
 
 // Cheap cleanup — call lazily from successful logins. Keeps the table small.
 export async function pruneOldLoginAttempts(): Promise<void> {
+  if (isVirtualDbEnabled()) {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    globalThis.__clockinLiteVirtualLoginAttempts = virtualAttempts().filter(item => item.attemptedAt >= cutoff);
+    return;
+  }
   try {
     await db.execute(sql`
       DELETE FROM clockin.login_attempts

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/requireAuth';
 import { recordAuditLog } from '@/lib/audit';
 import { isDemoModeEnabled } from '@/lib/demoMode';
+import { createVirtualEmployee, isVirtualDbEnabled } from '@/lib/virtualDb';
 
 async function resolvePositionId(name: string): Promise<number | null> {
   const trimmed = name.trim();
@@ -23,6 +24,19 @@ export async function createEmployee(data: {
 }) {
   const session = await requireAuth();
   try {
+    if (isVirtualDbEnabled()) {
+      const id = createVirtualEmployee(data);
+      revalidatePath('/employees');
+      await recordAuditLog({
+        action: 'create_employee',
+        actionLabel: `新增员工：${data.name.trim()}`,
+        pageUrl: '/employees/new',
+        user: session,
+        detail: { employeeId: id, name: data.name.trim(), positionName: data.positionName },
+      });
+      return { ok: true, id };
+    }
+
     const demoMode = await isDemoModeEnabled();
     const positionId = await resolvePositionId(data.positionName);
     const [emp] = await db.insert(employees).values({

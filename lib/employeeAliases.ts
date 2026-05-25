@@ -1,5 +1,11 @@
 import { db, employeeAliases } from '@/db';
 import { eq, sql } from 'drizzle-orm';
+import {
+  getVirtualAliasesForEmployee,
+  getVirtualEmployeeAliasMap,
+  isVirtualDbEnabled,
+  replaceVirtualEmployeeAliases,
+} from '@/lib/virtualDb';
 
 const localPreviewAliases: Record<number, string[]> = {
   5: ['一鸣', '林一'],
@@ -32,6 +38,7 @@ function withLocalPreviewAliases(employeeId: number, aliases: string[]) {
 }
 
 async function ensureEmployeeAliasesTable() {
+  if (isVirtualDbEnabled()) return;
   if (!ensurePromise) {
     ensurePromise = (async () => {
       await db.execute(sql`
@@ -56,6 +63,7 @@ async function ensureEmployeeAliasesTable() {
 }
 
 export async function getAliasesForEmployee(employeeId: number) {
+  if (isVirtualDbEnabled()) return getVirtualAliasesForEmployee(employeeId);
   try {
     await ensureEmployeeAliasesTable();
     const rows = await db
@@ -71,6 +79,7 @@ export async function getAliasesForEmployee(employeeId: number) {
 }
 
 export async function getEmployeeAliasMap(employeeIds?: number[]) {
+  if (isVirtualDbEnabled()) return getVirtualEmployeeAliasMap(employeeIds);
   try {
     await ensureEmployeeAliasesTable();
     const rows = await db
@@ -105,6 +114,7 @@ export async function getEmployeeAliasMap(employeeIds?: number[]) {
 
 export async function replaceEmployeeAliases(employeeId: number, input: string[]) {
   const aliases = normalizeEmployeeAliases(input);
+  if (isVirtualDbEnabled()) return replaceVirtualEmployeeAliases(employeeId, aliases);
   await ensureEmployeeAliasesTable();
   await db.transaction(async tx => {
     await tx.delete(employeeAliases).where(eq(employeeAliases.employeeId, employeeId));

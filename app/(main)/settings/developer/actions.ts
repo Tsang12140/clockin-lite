@@ -11,6 +11,7 @@ import {
   getServerClientContext,
   recordLoginAttempt,
 } from '@/lib/loginRateLimit';
+import { getVirtualAdminUser, isVirtualDbEnabled } from '@/lib/virtualDb';
 
 type UnlockResult =
   | { ok: true }
@@ -35,6 +36,32 @@ export async function unlockDeveloperOptions(formData: FormData): Promise<Unlock
   if (rl.blocked) return { ok: false, error: 'rate-limited' };
 
   const session = await getSession();
+  if (isVirtualDbEnabled()) {
+    const admin = getVirtualAdminUser(session.userPhone ?? '');
+    const ok = admin ? await verifyPassword(password, admin.passwordHash) : false;
+
+    await recordLoginAttempt({
+      ip: ctx.ip,
+      deviceId,
+      fingerprintHash,
+      usernameAttempted: 'developer',
+      attemptType: 'developer',
+      success: ok,
+    });
+
+    if (!ok) return { ok: false, error: 'invalid' };
+
+    session.developerUnlocked = true;
+    await session.save();
+    await upsertTenantConfig({ developerMode: true });
+    await recordAuditLog({
+      action: 'developer_unlock',
+      actionLabel: '进入开发人员选项',
+      pageUrl: '/settings/developer',
+    });
+    return { ok: true };
+  }
+
   const [admin] = await db
     .select({ passwordHash: adminUsers.passwordHash })
     .from(adminUsers)

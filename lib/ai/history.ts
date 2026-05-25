@@ -1,5 +1,6 @@
 import { aiChatLogs, db } from '@/db';
 import { and, desc, eq, gt, lt, sql } from 'drizzle-orm';
+import { getVirtualAIChatHistory, isVirtualDbEnabled, saveVirtualAIChatLog } from '@/lib/virtualDb';
 
 type ChatAction = { type: string; label: string; href: string };
 
@@ -34,6 +35,7 @@ function safeLimit(value: string | null) {
 }
 
 async function ensureHistoryTable() {
+  if (isVirtualDbEnabled()) return;
   if (!tableReady) {
     tableReady = (async () => {
       try {
@@ -84,6 +86,10 @@ export async function saveAIChatLog(input: {
   pageUrl?: string | null;
   actions?: ChatAction[];
 }) {
+  if (isVirtualDbEnabled()) {
+    saveVirtualAIChatLog(input);
+    return;
+  }
   try {
     await ensureHistoryTable();
     await db.delete(aiChatLogs).where(lt(aiChatLogs.createdAt, cutoffDate(RETENTION_DAYS)));
@@ -106,6 +112,13 @@ export async function getAIChatHistory(params: {
   before?: string | null;
   limit?: string | null;
 }) {
+  if (isVirtualDbEnabled()) {
+    return {
+      ok: true,
+      items: getVirtualAIChatHistory(params.userId, safeLimit(params.limit ?? null)) as AIHistoryItem[],
+      nextCursor: null,
+    };
+  }
   try {
     await ensureHistoryTable();
     const limit = safeLimit(params.limit ?? null);
