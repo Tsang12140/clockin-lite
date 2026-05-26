@@ -107,17 +107,21 @@ function encryptValue(value: string) {
 
 function decryptValue(config: StoredAIConfig) {
   if (!config.encryptedApiKey || !config.apiKeyIv || !config.apiKeyTag) return undefined;
-  const decipher = createDecipheriv(
-    'aes-256-gcm',
-    encryptionKey(),
-    Buffer.from(config.apiKeyIv, 'base64'),
-  );
-  decipher.setAuthTag(Buffer.from(config.apiKeyTag, 'base64'));
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(config.encryptedApiKey, 'base64')),
-    decipher.final(),
-  ]);
-  return decrypted.toString('utf8');
+  try {
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      encryptionKey(),
+      Buffer.from(config.apiKeyIv, 'base64'),
+    );
+    decipher.setAuthTag(Buffer.from(config.apiKeyTag, 'base64'));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(config.encryptedApiKey, 'base64')),
+      decipher.final(),
+    ]);
+    return decrypted.toString('utf8');
+  } catch {
+    return undefined;
+  }
 }
 
 async function resolveSession(session?: AIConfigSession): Promise<AIConfigSession | undefined> {
