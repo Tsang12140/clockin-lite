@@ -12,8 +12,8 @@
 // ================================================================
 const CONFIG = {
   factoryShortName: '蛋妞',   // 工厂简称（1-10字）
-  phone:            '13800000000', // 管理员手机号（11位数字）
-  password:         '123123',      // 登录密码（6位数字）
+  phone:            '2025',   // 管理员账号
+  password:         '2026',   // 登录密码
 };
 // ================================================================
 
@@ -57,12 +57,12 @@ async function main() {
     process.exit(1);
   }
 
-  if (!/^\d{11}$/.test(CONFIG.phone)) {
-    console.error('错误：phone 必须是 11 位数字');
+  if (!CONFIG.phone.trim()) {
+    console.error('错误：phone 不能为空');
     process.exit(1);
   }
-  if (!/^\d{6}$/.test(CONFIG.password)) {
-    console.error('错误：password 必须是 6 位数字');
+  if (!CONFIG.password.trim()) {
+    console.error('错误：password 不能为空');
     process.exit(1);
   }
   if (!CONFIG.factoryShortName.trim() || CONFIG.factoryShortName.length > 10) {

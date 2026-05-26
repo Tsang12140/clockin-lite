@@ -14,8 +14,8 @@ export default function LoginForm() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!/^\d{11}$/.test(phone))   { setError('手机号必须是 11 位数字'); return; }
-    if (!/^\d{6}$/.test(password)) { setError('密码必须是 6 位数字'); return; }
+    if (!phone.trim())    { setError('请输入账号'); return; }
+    if (!password.trim()) { setError('请输入密码'); return; }
 
     startTransition(async () => {
       try {
@@ -48,17 +48,14 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
       <div>
-        <label className="block text-[13px] text-gray-500 mb-1.5">手机号</label>
+        <label className="block text-[13px] text-gray-500 mb-1.5">账号</label>
         <input
           name="username"
-          type="tel"
-          inputMode="numeric"
-          pattern="[0-9]{11}"
-          maxLength={11}
-          autoComplete="tel"
+          type="text"
+          autoComplete="username"
           required
           value={phone}
-          onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+          onChange={e => setPhone(e.target.value)}
           className="w-full h-11 px-3 rounded-xl border border-gray-200 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#3370FF]/40 focus:border-[#3370FF]"
         />
       </div>
@@ -67,14 +64,11 @@ export default function LoginForm() {
         <input
           name="password"
           type="password"
-          inputMode="numeric"
-          pattern="[0-9]{6}"
-          maxLength={6}
           autoComplete="current-password"
           required
           value={password}
-          onChange={e => setPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          className="w-full h-11 px-3 rounded-xl border border-gray-200 text-[15px] tracking-[0.35em] focus:outline-none focus:ring-2 focus:ring-[#3370FF]/40 focus:border-[#3370FF]"
+          onChange={e => setPassword(e.target.value)}
+          className="w-full h-11 px-3 rounded-xl border border-gray-200 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#3370FF]/40 focus:border-[#3370FF]"
         />
       </div>
       {error && <p className="text-[13px] text-red-500">{error}</p>}

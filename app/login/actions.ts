@@ -15,16 +15,13 @@ type LoginResult =
   | { ok: true }
   | { ok: false; error: 'format' | 'rate-limited' | 'invalid' };
 
-const PHONE_RE = /^\d{11}$/;
-const PWD_RE = /^\d{6}$/;
-
 export async function login(formData: FormData): Promise<LoginResult> {
   const username  = String(formData.get('username') ?? '').trim();
   const password  = String(formData.get('password') ?? '').trim();
   const deviceId  = String(formData.get('deviceId') ?? '').trim() || null;
   const browserFp = String(formData.get('browserFingerprint') ?? '').trim() || null;
 
-  if (!PHONE_RE.test(username) || !PWD_RE.test(password)) {
+  if (!username || !password) {
     return { ok: false, error: 'format' };
   }
 

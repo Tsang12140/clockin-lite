@@ -13,7 +13,7 @@ export interface AuthUser {
 // Authenticate against clockin.admin_users.
 // Returns null on any failure (unknown phone, wrong password, etc.).
 export async function authenticate(phone: string, password: string): Promise<AuthUser | null> {
-  if (!/^\d{11}$/.test(phone) || !/^\d{6}$/.test(password)) return null;
+  if (!phone.trim() || !password.trim()) return null;
 
   try {
     if (isVirtualDbEnabled()) {
