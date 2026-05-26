@@ -17,6 +17,19 @@ interface EmployeeSalary {
   recordCount: number;
 }
 
+function SpacedName({ name }: { name: string }) {
+  const chars = Array.from(name.trim());
+  if (chars.length === 2) {
+    return (
+      <span className="inline-flex w-[3.05em] justify-between">
+        <span>{chars[0]}</span>
+        <span>{chars[1]}</span>
+      </span>
+    );
+  }
+  return <>{name}</>;
+}
+
 export default function SalaryPage({
   data,
   year,
@@ -75,15 +88,16 @@ export default function SalaryPage({
 
       {/* Summary card */}
       <div className="mx-3 mt-3 bg-white rounded-2xl shadow-sm p-4 md:mx-0">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
+        <div className="grid grid-cols-[minmax(0,1fr)_132px_16px] items-center gap-3">
+          <div className="min-w-0">
             <div className="text-[11px] text-gray-400 mb-0.5">总工时</div>
             <div className="text-[22px] font-bold text-[#1A3A8F]">{formatHours(totalHours)}<span className="text-[13px] font-normal ml-1">小时</span></div>
           </div>
-          <div>
+          <div className="w-[132px] rounded-xl bg-[#F5F8FF] px-3 py-2 text-right">
             <div className="text-[11px] text-gray-400 mb-0.5">总工资</div>
-            <div className="text-[22px] font-bold text-[#1A3A8F]">¥{formatMoney(totalWage)}</div>
+            <div className="text-[18px] font-bold leading-tight text-[#1A3A8F]">¥{formatMoney(totalWage)}</div>
           </div>
+          <div aria-hidden className="w-4" />
         </div>
       </div>
 
@@ -91,12 +105,12 @@ export default function SalaryPage({
       <div className="px-3 mt-2 space-y-2 md:px-0">
         {activeData.map(emp => (
           <Link key={emp.id} href={`/salary/${emp.id}?year=${year}&month=${month}`}
-            className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-3">
+            className="grid grid-cols-[minmax(0,1fr)_132px_16px] items-center gap-3 bg-white rounded-2xl shadow-sm p-4">
             <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-semibold text-gray-800">{emp.name}</div>
+              <div className="text-[15px] font-semibold text-gray-800"><SpacedName name={emp.name} /></div>
               <div className="text-[12px] text-gray-400 mt-0.5">{emp.recordCount} 天 · {formatHours(emp.totalHours)} 小时</div>
             </div>
-            <div className="bg-[#3370FF] text-white rounded-xl px-3 py-1.5 text-right shrink-0">
+            <div className="w-[132px] bg-[#3370FF] text-white rounded-xl px-3 py-1.5 text-right">
               <div className="text-[16px] font-bold leading-tight">¥{formatMoney(emp.totalWage)}</div>
             </div>
             <ArrowRight size={16} className="text-gray-300 shrink-0" />

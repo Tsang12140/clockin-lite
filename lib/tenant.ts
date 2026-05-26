@@ -3,6 +3,7 @@ import { sql, eq } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { tenantConfig as tenantConfigTable, type TenantConfig, type WorkScheduleConfig } from '@/db/schema';
 import { normalizeOvertimeMultipliers, type OvertimeMultipliers } from '@/lib/overtime';
+import { getSession } from '@/lib/session';
 import {
   getVirtualTenantConfig,
   isVirtualDbEnabled,
@@ -296,8 +297,19 @@ export function invalidateTenantCache(): void {
   setupCache = null;
 }
 
+async function isVirtualSessionActive(): Promise<boolean> {
+  try {
+    const session = await getSession();
+    return session.isLoggedIn === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function isSetupCompleted(): Promise<boolean> {
-  if (isVirtualDbEnabled()) return isVirtualSetupCompleted();
+  if (isVirtualDbEnabled()) {
+    return isVirtualSetupCompleted() || await isVirtualSessionActive();
+  }
   if (setupCache?.value === true) return true;
   if (setupCache && Date.now() < setupCache.expiresAt) return setupCache.value;
   try {
@@ -372,7 +384,22 @@ function mapRow(row: TenantRow): TenantConfig {
 }
 
 export async function getTenantConfig(): Promise<TenantConfig | null> {
-  if (isVirtualDbEnabled()) return getVirtualTenantConfig();
+  if (isVirtualDbEnabled()) {
+    const config = getVirtualTenantConfig();
+    try {
+      const session = await getSession();
+      if (session.isLoggedIn === true && session.userName?.trim()) {
+        return {
+          ...config,
+          factoryShortName: session.userName.trim(),
+          setupCompletedAt: config.setupCompletedAt ?? new Date(),
+        };
+      }
+    } catch {
+      // Outside a request scope we fall back to the in-memory virtual store.
+    }
+    return config;
+  }
   try {
     await ensureTenantTables();
     const result = await db.execute(sql`
@@ -423,6 +450,17 @@ type UpsertInput = Partial<{
 export async function upsertTenantConfig(patch: UpsertInput): Promise<void> {
   if (isVirtualDbEnabled()) {
     patchVirtualTenantConfig(patch as Partial<TenantConfig>);
+    if (typeof patch.factoryShortName === 'string' && patch.factoryShortName.trim()) {
+      try {
+        const session = await getSession();
+        if (session.isLoggedIn === true) {
+          session.userName = patch.factoryShortName.trim();
+          await session.save();
+        }
+      } catch {
+        // Updating the virtual store is enough outside a request scope.
+      }
+    }
     invalidateTenantCache();
     return;
   }

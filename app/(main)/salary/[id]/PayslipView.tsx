@@ -15,6 +15,19 @@ interface EmpStub { id: number; name: string }
 
 const DOW_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 
+function SpacedName({ name }: { name: string }) {
+  const chars = Array.from(name.trim());
+  if (chars.length === 2) {
+    return (
+      <span className="inline-flex w-[3.05em] justify-between">
+        <span>{chars[0]}</span>
+        <span>{chars[1]}</span>
+      </span>
+    );
+  }
+  return <>{name}</>;
+}
+
 export default function PayslipView({
   emp,
   records,
