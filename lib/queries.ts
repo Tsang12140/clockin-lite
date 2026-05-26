@@ -1,5 +1,5 @@
 import { db, employees, attendanceRecords, hourlyRateHistory, positions, holidays } from '@/db';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { getAliasesForEmployee, getEmployeeAliasMap } from '@/lib/employeeAliases';
 import { isDemoModeEnabled } from '@/lib/demoMode';
 import { getOvertimeMultipliers, getWorkSchedule } from '@/lib/tenant';
@@ -399,7 +399,7 @@ export async function getRateHistory(employeeIds?: number[]) {
     const demoMode = await isDemoModeEnabled();
     if (employeeIds?.length) {
       return withLocalPreviewRateHistory(await db.select().from(hourlyRateHistory)
-        .where(and(eq(hourlyRateHistory.isDemo, demoMode), sql`${hourlyRateHistory.employeeId} = ANY(${employeeIds})`))
+        .where(and(eq(hourlyRateHistory.isDemo, demoMode), inArray(hourlyRateHistory.employeeId, employeeIds)))
         .orderBy(hourlyRateHistory.employeeId, hourlyRateHistory.effectiveDate));
     }
     return withLocalPreviewRateHistory(await db.select().from(hourlyRateHistory)
