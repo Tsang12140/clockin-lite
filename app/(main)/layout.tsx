@@ -9,9 +9,24 @@ import { isSetupCompleted, getFactoryShortName } from '@/lib/tenant';
 import { getAIAvailability } from '@/lib/ai/config';
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
-  if (!(await isSetupCompleted())) redirect('/setup');
+  const noAuth = process.env.NO_AUTH === 'true';
+
+  if (!noAuth && !(await isSetupCompleted())) redirect('/setup');
+
   const session = await getSession();
-  if (!session.isLoggedIn) redirect('/login');
+  if (!session.isLoggedIn) {
+    if (noAuth) {
+      const name = await getFactoryShortName();
+      session.isLoggedIn = true;
+      session.userId    = '1';
+      session.role      = 'admin';
+      session.userName  = name || '工厂考勤';
+      await session.save();
+    } else {
+      redirect('/login');
+    }
+  }
+
   const [factoryShortName, aiAvailability] = await Promise.all([
     getFactoryShortName(),
     getAIAvailability(session),
