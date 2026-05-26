@@ -87,7 +87,7 @@ export default function DesktopAttendanceEditor({
 
   return (
     <div className="overflow-visible rounded-xl border border-gray-100 bg-white">
-      <div className="grid grid-cols-[minmax(160px,1fr)_280px_220px_42px] items-center gap-4 rounded-t-xl bg-[#F8FAFF] px-5 py-3 text-[13px] font-semibold text-gray-500">
+      <div className="grid grid-cols-[minmax(160px,1fr)_200px_160px_40px] items-center gap-4 rounded-t-xl bg-[#F8FAFF] px-5 py-3 text-[13px] font-semibold text-gray-500">
         <div>姓名</div>
         <div className="text-center">工时</div>
         <div>状态</div>
@@ -106,7 +106,7 @@ export default function DesktopAttendanceEditor({
           return (
             <div
               key={emp.id}
-              className={`grid grid-cols-[minmax(160px,1fr)_280px_220px_42px] items-center gap-4 px-5 py-4 ${rowBg} ${empIdx === employees.length - 1 ? 'rounded-b-xl' : ''}`}
+              className={`grid grid-cols-[minmax(160px,1fr)_200px_160px_40px] items-center gap-4 px-5 py-4 ${rowBg} ${empIdx === employees.length - 1 ? 'rounded-b-xl' : ''}`}
             >
               <div className="min-w-0 pr-4">
                 <span className={`${emp.name.length === 2 ? 'inline-block w-[3em] text-justify [text-align-last:justify]' : 'block truncate'} select-text text-[19px] font-bold text-gray-800`}>{emp.name}</span>

@@ -93,7 +93,7 @@ export default function SalaryPage({
             <div className="text-[11px] text-gray-400 mb-0.5">总工时</div>
             <div className="text-[22px] font-bold text-[#1A3A8F]">{formatHours(totalHours)}<span className="text-[13px] font-normal ml-1">小时</span></div>
           </div>
-          <div className="w-[132px] rounded-xl bg-[#F5F8FF] px-3 py-2 text-right">
+          <div className="w-[132px] rounded-xl bg-[#F5F8FF] px-3 py-2 text-center">
             <div className="text-[11px] text-gray-400 mb-0.5">总工资</div>
             <div className="text-[18px] font-bold leading-tight text-[#1A3A8F]">¥{formatMoney(totalWage)}</div>
           </div>
@@ -110,7 +110,7 @@ export default function SalaryPage({
               <div className="text-[15px] font-semibold text-gray-800"><SpacedName name={emp.name} /></div>
               <div className="text-[12px] text-gray-400 mt-0.5">{emp.recordCount} 天 · {formatHours(emp.totalHours)} 小时</div>
             </div>
-            <div className="w-[132px] bg-[#3370FF] text-white rounded-xl px-3 py-1.5 text-right">
+            <div className="w-[132px] bg-[#3370FF] text-white rounded-xl px-3 py-1.5 text-center">
               <div className="text-[16px] font-bold leading-tight">¥{formatMoney(emp.totalWage)}</div>
             </div>
             <ArrowRight size={16} className="text-gray-300 shrink-0" />
