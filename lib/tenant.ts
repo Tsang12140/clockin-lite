@@ -41,6 +41,7 @@ export async function ensureTenantTables(): Promise<void> {
           weather_encrypted_key             TEXT,
           weather_location_id               TEXT,
           weather_city                      TEXT,
+          salary_pay_day                    INTEGER NOT NULL DEFAULT 15,
           overtime_standard_hours           NUMERIC(4,1) NOT NULL DEFAULT 8.0,
           overtime_weekday_multiplier       NUMERIC(3,2) NOT NULL DEFAULT 1.00,
           overtime_weekday_overtime_multiplier NUMERIC(3,2) NOT NULL DEFAULT 1.00,
@@ -78,7 +79,8 @@ export async function ensureTenantTables(): Promise<void> {
         ADD COLUMN IF NOT EXISTS work_start_time TEXT,
         ADD COLUMN IF NOT EXISTS work_end_time TEXT,
         ADD COLUMN IF NOT EXISTS lunch_start_time TEXT,
-        ADD COLUMN IF NOT EXISTS lunch_end_time TEXT
+        ADD COLUMN IF NOT EXISTS lunch_end_time TEXT,
+        ADD COLUMN IF NOT EXISTS salary_pay_day INTEGER NOT NULL DEFAULT 15
       `);
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS clockin.admin_users (
@@ -344,6 +346,7 @@ type TenantRow = {
   work_end_time: string | null;
   lunch_start_time: string | null;
   lunch_end_time: string | null;
+  salary_pay_day: number;
   overtime_standard_hours: string;
   overtime_weekday_multiplier: string;
   overtime_weekday_overtime_multiplier: string;
@@ -371,6 +374,7 @@ function mapRow(row: TenantRow): TenantConfig {
     workEndTime: row.work_end_time,
     lunchStartTime: row.lunch_start_time,
     lunchEndTime: row.lunch_end_time,
+    salaryPayDay: row.salary_pay_day,
     overtimeStandardHours: row.overtime_standard_hours,
     overtimeWeekdayMultiplier: row.overtime_weekday_multiplier,
     overtimeWeekdayOvertimeMultiplier: row.overtime_weekday_overtime_multiplier,
@@ -438,6 +442,7 @@ type UpsertInput = Partial<{
   workEndTime: string | null;
   lunchStartTime: string | null;
   lunchEndTime: string | null;
+  salaryPayDay: number;
   overtimeStandardHours: string;
   overtimeWeekdayMultiplier: string;
   overtimeWeekdayOvertimeMultiplier: string;
@@ -496,6 +501,11 @@ export async function getFactoryShortName(): Promise<string> {
   return config?.factoryShortName?.trim() || '工厂考勤';
 }
 
+export async function getWeatherCity(): Promise<string> {
+  const config = await getTenantConfig();
+  return (config?.weatherCity ?? '').replace(/[区市县省]$/, '');
+}
+
 export async function getWorkSchedule(): Promise<WorkScheduleConfig | null> {
   const config = await getTenantConfig();
   return config?.workSchedule ?? null;
@@ -517,6 +527,7 @@ export type WorkTimes = {
   endTime: string;
   lunchStartTime: string;
   lunchEndTime: string;
+  salaryPayDay: number;
 };
 
 export async function getWorkTimes(): Promise<WorkTimes> {
@@ -526,5 +537,11 @@ export async function getWorkTimes(): Promise<WorkTimes> {
     endTime:        config?.workEndTime    ?? '17:30',
     lunchStartTime: config?.lunchStartTime ?? '12:00',
     lunchEndTime:   config?.lunchEndTime   ?? '13:00',
+    salaryPayDay:   config?.salaryPayDay   ?? 15,
   };
+}
+
+export async function getSalaryPayDay(): Promise<number> {
+  const config = await getTenantConfig();
+  return config?.salaryPayDay ?? 15;
 }

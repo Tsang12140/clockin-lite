@@ -5,7 +5,7 @@ import DesktopView from './DesktopView';
 import HolidayNotice from './HolidayNotice';
 import { todayString, getMonday, addDays } from '@/lib/utils';
 import { fetchWeatherSnapshot } from '@/lib/weatherServer';
-import { getWorkSchedule, getWorkTimes } from '@/lib/tenant';
+import { getWorkSchedule, getWorkTimes, getWeatherCity } from '@/lib/tenant';
 import { isWorkday as isScheduledWorkday, normalizeWorkSchedule } from '@/lib/workSchedule';
 import { buildHolidayNotice } from '@/lib/chinaHolidays';
 
@@ -23,7 +23,7 @@ export default async function HomePage() {
   const lastDayOfMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const endOfMonth = `${year}-${String(month).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
 
-  const [employees, monthRecs, lastWorkedHours, weatherSnapshot, holidayDates, adjustedWorkdayDates, workScheduleConfig, workTimes] = await Promise.all([
+  const [employees, monthRecs, lastWorkedHours, weatherSnapshot, holidayDates, adjustedWorkdayDates, workScheduleConfig, workTimes, weatherCity] = await Promise.all([
     getActiveEmployees(),
     getAttendanceForRange(startOfMonth, endOfMonth),
     getLastWorkedHours(),
@@ -32,6 +32,7 @@ export default async function HomePage() {
     getMonthAdjustedWorkdayDates(year, month),
     getWorkSchedule(),
     getWorkTimes(),
+    getWeatherCity(),
   ]);
   const workEndHour = workTimes.endTime ? parseInt(workTimes.endTime.split(':')[0], 10) : 15;
   const workSchedule = normalizeWorkSchedule(workScheduleConfig);
@@ -69,6 +70,7 @@ export default async function HomePage() {
     missedDate,
     lastWorkedHours,
     weatherSnapshot,
+    weatherCity,
     workSchedule,
     workEndHour,
   };
@@ -78,7 +80,7 @@ export default async function HomePage() {
       <HolidayNotice notice={holidayNotice} />
 
       {/* Mobile view */}
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <TodayEntry
           {...commonProps}
           initialAttendance={weekRecs.map(shapeRec)}
@@ -87,7 +89,7 @@ export default async function HomePage() {
       </div>
 
       {/* Desktop view */}
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <DesktopView
           {...commonProps}
           initialMonthData={monthRecs.map(shapeRec)}

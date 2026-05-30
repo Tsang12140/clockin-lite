@@ -283,6 +283,36 @@ export default function AIAssistant({
     tick();
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onPageQuestion = (event: Event) => {
+      if (!aiEnabled) {
+        setShowSetupGuide(true);
+        return;
+      }
+
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      const userText = detail?.message?.trim() || '我对本页有疑问';
+      const replyText = '可以，你直接说哪里不明白。比如“为什么这个人工资少了 200 块”“加班是怎么算的”“这个月请假有没有扣钱”。我会按当前页面的数据帮你核一遍。';
+      const replyId = nextId.current + 1;
+
+      setOpen(true);
+      setShowSetupGuide(false);
+      setShowHistory(false);
+      setInput('');
+      setMessages(prev => [
+        ...prev,
+        { id: nextId.current++, role: 'user', text: userText },
+        { id: nextId.current++, role: 'assistant', text: replyText, mode: 'rules' },
+      ]);
+      startTypewriter(replyId, replyText);
+    };
+
+    window.addEventListener('clockin-ai-page-question', onPageQuestion);
+    return () => window.removeEventListener('clockin-ai-page-question', onPageQuestion);
+  }, [aiEnabled]);
+
   const copyMessage = async (id: number, text: string) => {
     try {
       await navigator.clipboard.writeText(text);

@@ -305,7 +305,6 @@ export default function DesktopView({
       nextStep += 1;
     }, 260);
     completionTimerRef.current = window.setTimeout(() => {
-      if (navigator.vibrate) navigator.vibrate(18);
       setCompletionWaveDate(current => current === date ? null : current);
       setCompletionWaveStep(-1);
     }, 90 + (total - 1) * 260 + 780);
@@ -322,7 +321,7 @@ export default function DesktopView({
       [empId]: {
         ...prev[empId],
         status,
-        hours: status === 'worked' ? formatDesktopHours(prev[empId]?.hours || '8') : '',
+        hours: status === 'worked' ? formatDesktopHours(prev[empId]?.hours || lastWorkedHours[empId] || '8') : '',
       },
     }));
   };
@@ -388,12 +387,11 @@ export default function DesktopView({
   const hasRecs = selectedDate ? hasDayRecords(selectedDate) : false;
   const completionActive = completionWaveDate === selectedDate;
   const displayDate = selectedDate
-    ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('zh-CN', {
+    ? `${new Date(selectedDate + 'T00:00:00').toLocaleDateString('zh-CN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        weekday: 'short',
-      })
+      })} · ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('zh-CN', { weekday: 'short' })}`
     : null;
   const weekStart = getMonday(selectedDate ?? today);
   const weekDays = getWeekDays(weekStart);

@@ -153,7 +153,6 @@ export default function AttendanceCardPreviewPage() {
       }, 90 + index * 300));
     });
     timersRef.current.push(window.setTimeout(() => {
-      if (navigator.vibrate) navigator.vibrate(18);
       playCompletionSound();
       setMode('saved');
       setCompletionStep(rows.length - 1);

@@ -1,4 +1,5 @@
 import { getPayslipData } from '@/lib/queries';
+import { getSalaryPayDay } from '@/lib/tenant';
 import { notFound } from 'next/navigation';
 import PayslipView from './PayslipView';
 
@@ -15,8 +16,10 @@ export default async function PayslipPage({
   const sp      = await searchParams;
   const empId   = parseInt(id);
   const now     = new Date();
-  const year    = parseInt(sp.year  ?? String(now.getFullYear()));
-  const month   = parseInt(sp.month ?? String(now.getMonth() + 1));
+  const payDay  = await getSalaryPayDay();
+  const defaultDate = new Date(now.getFullYear(), now.getMonth() - (now.getDate() > payDay ? 0 : 1), 1);
+  const year    = parseInt(sp.year  ?? String(defaultDate.getFullYear()));
+  const month   = parseInt(sp.month ?? String(defaultDate.getMonth() + 1));
 
   const {
     emp,

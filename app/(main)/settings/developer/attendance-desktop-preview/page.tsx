@@ -74,7 +74,6 @@ export default function DesktopAttendancePreviewPage() {
       timersRef.current.push(window.setTimeout(() => setCompletionStep(index), 90 + index * 260));
     });
     timersRef.current.push(window.setTimeout(() => {
-      if (navigator.vibrate) navigator.vibrate(18);
       setMode('saved');
       setCompletionStep(PREVIEW_EMPLOYEES.length - 1);
     }, 90 + Math.max(0, PREVIEW_EMPLOYEES.length - 1) * 260 + 780));

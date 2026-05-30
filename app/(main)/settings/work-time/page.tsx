@@ -21,7 +21,7 @@ export default async function WorkTimeSettingsPage() {
           </Link>
           <div>
             <h1 className="text-[17px] font-semibold text-[#1A3A8F]">工作时间</h1>
-            <div className="mt-0.5 text-[12px] text-gray-400">上下班时间、午休时间</div>
+            <div className="mt-0.5 text-[12px] text-gray-400">上下班、午休、每月发薪日</div>
           </div>
         </div>
 

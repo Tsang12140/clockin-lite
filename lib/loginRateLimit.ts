@@ -8,7 +8,7 @@ import { isVirtualDbEnabled } from '@/lib/virtualDb';
 export const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 export const RATE_LIMIT_MAX_FAILS = 3;
 
-type AttemptType = 'login' | 'developer';
+type AttemptType = 'login' | 'developer' | 'invite';
 
 type ClientContext = {
   ip: string | null;

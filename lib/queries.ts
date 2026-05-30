@@ -6,6 +6,7 @@ import { getOvertimeMultipliers, getWorkSchedule } from '@/lib/tenant';
 import { getChinaAdjustedWorkdayDatesForMonth, getChinaHolidayDatesForMonth } from '@/lib/chinaHolidays';
 import { calculateDailyWage } from '@/lib/overtime';
 import { normalizeWorkSchedule } from '@/lib/workSchedule';
+import { chooseTypicalWorkedHours } from '@/lib/defaultHours';
 import { effectiveRate } from '@/lib/utils';
 import {
   getVirtualActiveEmployees,
@@ -416,25 +417,30 @@ export async function getRateHistory(employeeIds?: number[]) {
   }
 }
 
-// Most recent confirmed (worked) hours per employee
+// Typical confirmed (worked) hours per employee, based on the recent 30-day mode.
 export async function getLastWorkedHours(): Promise<Record<number, string>> {
   if (isVirtualDbEnabled()) return getVirtualLastWorkedHours();
   try {
     const demoMode = await isDemoModeEnabled();
+    const now = new Date();
+    const today = dateStr(now);
+    const startDate = dateStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30));
     const recs = await db
-      .selectDistinctOn([attendanceRecords.employeeId], {
+      .select({
         employeeId: attendanceRecords.employeeId,
         hours:      attendanceRecords.hours,
+        workDate:   attendanceRecords.workDate,
       })
       .from(attendanceRecords)
-      .where(and(eq(attendanceRecords.status, 'worked'), eq(attendanceRecords.isDemo, demoMode)))
-      .orderBy(attendanceRecords.employeeId, desc(attendanceRecords.workDate));
+      .where(and(
+        eq(attendanceRecords.status, 'worked'),
+        eq(attendanceRecords.isDemo, demoMode),
+        gte(attendanceRecords.workDate, startDate),
+        lte(attendanceRecords.workDate, today),
+      ))
+      .orderBy(desc(attendanceRecords.workDate));
 
-    const result: Record<number, string> = {};
-    for (const r of recs) {
-      if (r.employeeId && r.hours) result[r.employeeId] = r.hours;
-    }
-    return result;
+    return chooseTypicalWorkedHours(recs);
   } catch (e) {
     if (!canUseDevFallback(e)) throw e;
     return { 5: '9.0', 8: '9.0', 10: '8.0', 11: '8.0' };

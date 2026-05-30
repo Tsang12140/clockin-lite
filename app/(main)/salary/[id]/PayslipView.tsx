@@ -131,6 +131,12 @@ export default function PayslipView({
 
   const fmtH = (h: number) => h % 1 === 0 ? String(h) : h.toFixed(1);
 
+  const askPageQuestion = () => {
+    window.dispatchEvent(new CustomEvent('clockin-ai-page-question', {
+      detail: { message: `我对${emp.name}这个工资条有疑问` },
+    }));
+  };
+
   const saveImage = async () => {
     if (!cardRef.current || saving) return;
     setSaving(true);
@@ -303,6 +309,13 @@ export default function PayslipView({
             <div className="text-[26px] font-bold text-[#1A3A8F] mt-2">
               ¥{totalWage.toFixed(2)}
             </div>
+            <button
+              type="button"
+              onClick={askPageQuestion}
+              className="mt-2 inline-flex h-7 items-center rounded-full bg-[#F0F4FA] px-3 text-[12px] font-semibold text-[#3370FF] active:bg-[#E6EEFF]"
+            >
+              我有疑问
+            </button>
           </div>
 
         </div>

@@ -11,6 +11,7 @@ export default function WorkTimeForm({ initialTimes }: { initialTimes: WorkTimes
   const [endTime, setEndTime] = useState(initialTimes.endTime);
   const [lunchStartTime, setLunchStartTime] = useState(initialTimes.lunchStartTime);
   const [lunchEndTime, setLunchEndTime] = useState(initialTimes.lunchEndTime);
+  const [salaryPayDay, setSalaryPayDay] = useState(String(initialTimes.salaryPayDay));
   const [message, setMessage] = useState('');
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function WorkTimeForm({ initialTimes }: { initialTimes: WorkTimes
         endTime,
         lunchStartTime,
         lunchEndTime,
+        salaryPayDay,
       });
       if (result.ok) {
         setMessage(result.message);
@@ -81,6 +83,25 @@ export default function WorkTimeForm({ initialTimes }: { initialTimes: WorkTimes
             />
           </label>
         </div>
+      </div>
+
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 text-[15px] font-semibold text-gray-800">工资周期</div>
+        <label className="grid gap-1.5">
+          <span className="text-[13px] font-medium text-gray-500">每月发薪日</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={salaryPayDay}
+              onChange={event => setSalaryPayDay(event.target.value)}
+              className="h-11 w-24 rounded-xl bg-[#F8FAFF] px-3 text-center text-[15px] font-semibold text-[#1A3A8F] outline-none ring-1 ring-gray-100 focus:ring-[#3370FF]/30"
+            />
+            <span className="text-[13px] font-medium text-gray-400">号</span>
+          </div>
+          <span className="text-[12px] text-gray-400">发薪日前默认查看上月工资，发薪日后默认查看本月工资。</span>
+        </label>
       </div>
 
       <button

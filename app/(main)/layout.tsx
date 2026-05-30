@@ -39,7 +39,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-full bg-[#F0F4FA]">
       <BottomNav factoryShortName={factoryShortName} />
-      <main className="pb-20 md:pb-0 md:pt-[72px]">{children}</main>
+      <main className="pb-20 lg:pb-0 lg:pt-[72px]">{children}</main>
       <AIAssistant
         userKey={aiUserKey}
         aiEnabled={aiEnabled}

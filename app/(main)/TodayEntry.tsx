@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, Lock, Edit2, Check, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, Edit2, Check, Trash2, ChevronDown } from 'lucide-react';
 import { saveAttendance, unlockDay, loadWeekData, clearAttendanceDay } from './actions';
 import { getMonday, addDays, getWeekDays } from '@/lib/utils';
 import { findWeatherDay, getWeatherDecisionForDay, getWeatherEmoji } from '@/lib/weather';
@@ -55,7 +55,7 @@ const STATUS_OPTIONS = [
   { value: 'sick',    label: '病假' },
   { value: 'absent',  label: '旷工' },
   { value: 'custom',  label: '自定义…' },
-  { value: 'all_holiday', label: '── 全体放假 ──' },
+  { value: 'all_holiday', label: '全体放假' },
 ];
 
 const DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
@@ -107,7 +107,7 @@ function renderSummaryCell(rec?: DayRecord, defaultRest = false): ReactNode {
 }
 
 export default function TodayEntry({
-  employees, initialAttendance, today, initialWeekStart, missedDate, lastWorkedHours, weatherSnapshot, workSchedule, workEndHour,
+  employees, initialAttendance, today, initialWeekStart, missedDate, lastWorkedHours, weatherSnapshot, weatherCity, workSchedule, workEndHour,
 }: {
   employees: Employee[];
   initialAttendance: AttRec[];
@@ -116,6 +116,7 @@ export default function TodayEntry({
   missedDate: string | null;
   lastWorkedHours: Record<number, string>;
   weatherSnapshot?: WeatherSnapshot | null;
+  weatherCity?: string;
   workSchedule?: WorkScheduleConfig | null;
   workEndHour?: number;
 }) {
@@ -139,17 +140,21 @@ export default function TodayEntry({
   const [isLoadingWeek, startWeekTransition] = useTransition();
   const [isSaving,      startSaveTransition] = useTransition();
   const [fontLevel,     setFontLevel]        = useState(0);
+  const [celebration,   setCelebration]      = useState(true);
   const [weatherHour,   setWeatherHour]      = useState<number | null>(null);
   const autoRestAttemptRef = useRef<string | null>(null);
   const completionTimerRef = useRef<number | null>(null);
   const completionStepTimerRef = useRef<number | null>(null);
   const dirtyRef = useRef(false);
   const backgroundRefreshRef = useRef({ inFlight: false, lastAt: Date.now() });
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const statusMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const readFontLevel = () => {
       const next = Number.parseInt(localStorage.getItem('clockin_fontsize') ?? '0', 10);
       setFontLevel(Number.isFinite(next) ? next : 0);
+      setCelebration(localStorage.getItem('clockin_celebration') !== 'off');
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') readFontLevel();
@@ -177,6 +182,17 @@ export default function TodayEntry({
     if (completionTimerRef.current) window.clearTimeout(completionTimerRef.current);
     if (completionStepTimerRef.current) window.clearInterval(completionStepTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (openDropdownId === null) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!statusMenuRef.current?.contains(event.target as Node)) {
+        setOpenDropdownId(null);
+      }
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => window.removeEventListener('pointerdown', onPointerDown);
+  }, [openDropdownId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -355,7 +371,6 @@ export default function TodayEntry({
     if (completionStepTimerRef.current) window.clearInterval(completionStepTimerRef.current);
     const total = Math.max(employees.length, 1);
     const playCompletionCue = () => {
-      if (navigator.vibrate) navigator.vibrate(18);
       playCompletionSound();
     };
     if (total === 1) playCompletionCue();
@@ -378,7 +393,7 @@ export default function TodayEntry({
   };
 
   const handleSave = () => {
-    const shouldCelebrate = !hasDayRecords(selectedDate);
+    const shouldCelebrate = celebration;
     if (shouldCelebrate) primeCompletionSound();
     startSaveTransition(async () => {
     const entries = buildEntries();
@@ -391,7 +406,7 @@ export default function TodayEntry({
   const handleHoliday = () => {
     const label = new Date(selectedDate + 'T00:00:00').toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
     if (!confirm(`确认 ${label} 全体放假？`)) return;
-    const shouldCelebrate = !hasDayRecords(selectedDate);
+    const shouldCelebrate = celebration;
     if (shouldCelebrate) primeCompletionSound();
     startSaveTransition(async () => {
       const entries = buildEntries('holiday');
@@ -435,7 +450,7 @@ export default function TodayEntry({
   const setStatus = (empId: number, status: string) => {
     if (status === 'all_holiday') { handleHoliday(); return; }
     dirtyRef.current = true;
-    setEditRows(prev => ({ ...prev, [empId]: { ...prev[empId], status, hours: status === 'worked' ? '8' : '' } }));
+    setEditRows(prev => ({ ...prev, [empId]: { ...prev[empId], status, hours: status === 'worked' ? (lastWorkedHours[empId] ?? '8') : '' } }));
   };
 
   const adjustHours = (empId: number, delta: number) =>
@@ -648,7 +663,7 @@ export default function TodayEntry({
             <div className="flex items-center gap-1.5 min-w-0 text-[12px] font-medium text-gray-500">
               <span className="shrink-0">{getWeatherEmoji(displayWeather.iconDay)}</span>
               <span className="truncate">
-                {weatherLabel} {displayWeather.textDay}・{displayWeather.tempMin}~{displayWeather.tempMax}°C
+                {weatherCity ? `${weatherCity} ` : ''}{weatherLabel} {displayWeather.textDay}・{displayWeather.tempMin}~{displayWeather.tempMax}°C
                 {weatherDecision?.tempHint ? `｜${weatherDecision.tempHint}` : ''}
               </span>
             </div>
@@ -671,7 +686,7 @@ export default function TodayEntry({
 
             return (
               <div key={emp.id} className={`${cardBg} rounded-xl p-3 ring-1 ring-inset ring-[#DCE5F4] [box-shadow:inset_0_-1px_0_rgba(26,58,143,0.06),0_1px_2px_rgba(15,23,42,0.035)]`}>
-              <div className="grid grid-cols-[minmax(56px,1fr)_auto_var(--att-status-width)_22px] items-center gap-[var(--att-row-gap)]">
+              <div className="grid grid-cols-[1fr_auto_1fr_22px] items-center gap-[var(--att-row-gap)]">
 
                 {/* Name */}
                 <div className="min-w-0">
@@ -680,7 +695,7 @@ export default function TodayEntry({
 
                 {/* Hours */}
                 <div className="grid grid-cols-[var(--att-button-size)_var(--att-value-width)_var(--att-button-size)] items-center justify-items-center shrink-0">
-                  <button onClick={() => adjustHours(emp.id, -0.5)} disabled={!isWork || locked}
+                  <button onClick={() => locked ? showToast('已锁定，如要修改请点右下方修改按钮') : adjustHours(emp.id, -0.5)} disabled={!isWork}
                     className={`w-[var(--att-button-size)] h-[var(--att-button-size)] rounded-full font-bold text-[var(--att-button-text-size)] flex items-center justify-center transition-colors
                       ${!isWork || rowCompleted ? 'bg-gray-50 text-gray-200' : 'bg-[#E8EEF8] text-[#1A3A8F]'}`}>−</button>
 
@@ -696,13 +711,13 @@ export default function TodayEntry({
                       placeholder="—" />
                   )}
 
-                  <button onClick={() => adjustHours(emp.id, 0.5)} disabled={!isWork || locked}
+                  <button onClick={() => locked ? showToast('已锁定，如要修改请点右下方修改按钮') : adjustHours(emp.id, 0.5)} disabled={!isWork}
                     className={`w-[var(--att-button-size)] h-[var(--att-button-size)] rounded-full font-bold text-[var(--att-button-text-size)] flex items-center justify-center transition-colors
                       ${!isWork || rowCompleted ? 'bg-gray-50 text-gray-200' : 'bg-[#E8EEF8] text-[#1A3A8F]'}`}>＋</button>
                 </div>
 
                 {/* Status */}
-                <div className="min-w-max flex items-center justify-end">
+                <div className="flex items-center">
                   {rowCompleted ? (
                     isCustom ? (
                       <span className="whitespace-nowrap text-[var(--att-status-size)] font-semibold text-purple-500 bg-purple-50 px-2.5 py-1 rounded-lg">
@@ -724,11 +739,38 @@ export default function TodayEntry({
                         className="text-gray-300 hover:text-gray-400 text-[18px] leading-none px-0.5 shrink-0">×</button>
                     </div>
                   ) : (
-                    <select value={row.status} onChange={e => setStatus(emp.id, e.target.value)}
-                      disabled={locked}
-                      className="w-[var(--att-status-width)] shrink-0 whitespace-nowrap text-[var(--att-status-size)] text-gray-600 bg-[#F0F4FA] border-0 rounded-lg px-1.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#3370FF]">
-                      {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <div ref={openDropdownId === emp.id ? statusMenuRef : null} className="relative w-full">
+                      <button
+                        type="button"
+                        disabled={locked}
+                        onClick={() => setOpenDropdownId(current => current === emp.id ? null : emp.id)}
+                        className="flex h-9 w-full items-center justify-between gap-1.5 rounded-xl border border-[#DCE5F4] bg-[#F6F8FC] px-2.5 text-[var(--att-status-size)] font-semibold text-gray-600 shadow-[inset_0_-1px_0_rgba(26,58,143,0.05)] transition focus:outline-none focus:ring-2 focus:ring-[#3370FF]/20 disabled:opacity-60"
+                      >
+                        <span className="truncate">{STATUS_OPTIONS.find(o => o.value === row.status)?.label ?? '正常'}</span>
+                        <ChevronDown size={12} className={`shrink-0 text-gray-400 transition-transform ${openDropdownId === emp.id ? 'rotate-180 text-[#3370FF]' : ''}`} />
+                      </button>
+                      {openDropdownId === emp.id && (
+                        <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-36 overflow-hidden rounded-2xl border border-[#DDE6F3] bg-white py-1.5 shadow-xl shadow-slate-200/90">
+                          {STATUS_OPTIONS.map(option => {
+                            const isActive = option.value === row.status;
+                            const isGlobalAction = option.value === 'all_holiday';
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => { setOpenDropdownId(null); setStatus(emp.id, option.value); }}
+                                className={`flex h-10 w-full items-center justify-between px-3.5 text-left text-[13px] font-semibold transition
+                                  ${isGlobalAction ? 'mt-1 border-t border-gray-100 text-emerald-600' : option.value === 'absent' ? 'text-red-500' : 'text-gray-700'}
+                                  ${isActive ? 'bg-blue-50 text-[#3370FF]' : 'hover:bg-[#F8FAFF]'}`}
+                              >
+                                <span>{option.label}</span>
+                                {isActive && <span className="h-1.5 w-1.5 rounded-full bg-[#3370FF]" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 

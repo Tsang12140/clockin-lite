@@ -114,6 +114,7 @@ export const tenantConfig = clockinSchema.table('tenant_config', {
   workEndTime:                    text('work_end_time'),
   lunchStartTime:                 text('lunch_start_time'),
   lunchEndTime:                   text('lunch_end_time'),
+  salaryPayDay:                   integer('salary_pay_day').default(15).notNull(),
   overtimeStandardHours:          numeric('overtime_standard_hours',          { precision: 4, scale: 1 }).default('8.0').notNull(),
   overtimeWeekdayMultiplier:      numeric('overtime_weekday_multiplier',       { precision: 3, scale: 2 }).default('1.00').notNull(),
   overtimeWeekdayOvertimeMultiplier: numeric('overtime_weekday_overtime_multiplier', { precision: 3, scale: 2 }).default('1.00').notNull(),

@@ -16,7 +16,7 @@ export default function BottomNav({ factoryShortName }: { factoryShortName: stri
 
   return (
     <>
-      <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 z-50 safe-area-bottom md:hidden">
+      <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 z-50 safe-area-bottom lg:hidden">
         <div className="flex h-16">
           {tabs.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -38,7 +38,7 @@ export default function BottomNav({ factoryShortName }: { factoryShortName: stri
         </div>
       </nav>
 
-      <nav className="fixed inset-x-0 top-0 z-50 hidden border-b border-gray-200/70 bg-white/95 backdrop-blur md:block">
+      <nav className="fixed inset-x-0 top-0 z-50 hidden border-b border-gray-200/70 bg-white/95 backdrop-blur lg:block">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link href="/" className="flex select-none items-center gap-2.5">
             <img src="/logo.svg" alt="" className="h-8 w-8 rounded-[9px] shadow-sm" />

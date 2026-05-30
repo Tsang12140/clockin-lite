@@ -6,6 +6,7 @@ import { getChinaAdjustedWorkdayDatesForMonth, getChinaHolidayDatesForMonth } fr
 import { effectiveRate } from '@/lib/utils';
 import { normalizeOvertimeMultipliers, type OvertimeMultipliers } from '@/lib/overtime';
 import { normalizeWorkSchedule } from '@/lib/workSchedule';
+import { chooseTypicalWorkedHours } from '@/lib/defaultHours';
 
 export function isVirtualDbEnabled(): boolean {
   const mode = (process.env.CLOCKIN_DATA_MODE ?? process.env.CLOCKIN_STORAGE ?? 'virtual').trim().toLowerCase();
@@ -147,6 +148,7 @@ function buildTenant(): TenantConfig {
     workEndTime: '17:30',
     lunchStartTime: '12:00',
     lunchEndTime: '13:00',
+    salaryPayDay: 15,
     overtimeStandardHours: '8.0',
     overtimeWeekdayMultiplier: '1.00',
     overtimeWeekdayOvertimeMultiplier: '1.00',
@@ -178,7 +180,7 @@ function buildEmployees(): VirtualEmployee[] {
       positionId: 1,
       positionName: '车缝',
       status: 'active',
-      hireDate: '2026-01-01',
+      hireDate: '2025-01-01',
       leaveDate: null,
       currentHourlyRate: '26.00',
       notes: null,
@@ -194,7 +196,7 @@ function buildEmployees(): VirtualEmployee[] {
       positionId: 1,
       positionName: '车缝',
       status: 'active',
-      hireDate: '2026-01-01',
+      hireDate: '2025-01-01',
       leaveDate: null,
       currentHourlyRate: '24.00',
       notes: null,
@@ -210,7 +212,7 @@ function buildEmployees(): VirtualEmployee[] {
       positionId: 2,
       positionName: '包装',
       status: 'active',
-      hireDate: '2026-01-01',
+      hireDate: '2025-01-01',
       leaveDate: null,
       currentHourlyRate: '22.00',
       notes: null,
@@ -226,10 +228,138 @@ function buildEmployees(): VirtualEmployee[] {
       positionId: 3,
       positionName: '质检',
       status: 'active',
-      hireDate: '2026-01-01',
+      hireDate: '2025-01-01',
       leaveDate: null,
       currentHourlyRate: '23.00',
       notes: null,
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 5,
+      name: '黄美珍',
+      gender: 'female',
+      phone: null,
+      idCard: null,
+      positionId: 2,
+      positionName: '包装',
+      status: 'inactive',
+      hireDate: '2025-01-01',
+      leaveDate: '2026-02-18',
+      currentHourlyRate: '21.00',
+      notes: '演示离职员工',
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 6,
+      name: '赵小兰',
+      gender: 'female',
+      phone: null,
+      idCard: null,
+      positionId: 1,
+      positionName: '车缝',
+      status: 'inactive',
+      hireDate: '2025-01-08',
+      leaveDate: '2026-02-26',
+      currentHourlyRate: '23.00',
+      notes: '演示离职员工',
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 7,
+      name: '吴桂香',
+      gender: 'female',
+      phone: null,
+      idCard: null,
+      positionId: 3,
+      positionName: '质检',
+      status: 'inactive',
+      hireDate: '2025-02-01',
+      leaveDate: '2026-01-20',
+      currentHourlyRate: '22.50',
+      notes: '演示离职员工',
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 8,
+      name: '刘春梅',
+      gender: 'female',
+      phone: null,
+      idCard: null,
+      positionId: 1,
+      positionName: '车缝',
+      status: 'inactive',
+      hireDate: '2025-01-15',
+      leaveDate: '2025-12-28',
+      currentHourlyRate: '24.00',
+      notes: '演示离职员工',
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 9,
+      name: '何玉莲',
+      gender: 'female',
+      phone: null,
+      idCard: null,
+      positionId: 2,
+      positionName: '包装',
+      status: 'inactive',
+      hireDate: '2025-03-01',
+      leaveDate: '2025-11-22',
+      currentHourlyRate: '20.50',
+      notes: '演示离职员工',
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 10,
+      name: '潘志强',
+      gender: 'male',
+      phone: null,
+      idCard: null,
+      positionId: 2,
+      positionName: '包装',
+      status: 'inactive',
+      hireDate: '2025-01-20',
+      leaveDate: '2026-02-10',
+      currentHourlyRate: '22.00',
+      notes: '演示离职员工',
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 11,
+      name: '郑阿敏',
+      gender: 'female',
+      phone: null,
+      idCard: null,
+      positionId: 1,
+      positionName: '车缝',
+      status: 'inactive',
+      hireDate: '2025-04-10',
+      leaveDate: '2026-01-31',
+      currentHourlyRate: '23.50',
+      notes: '演示离职员工',
+      isDemo: true,
+      createdAt: null,
+    },
+    {
+      id: 12,
+      name: '罗海燕',
+      gender: 'female',
+      phone: null,
+      idCard: null,
+      positionId: 3,
+      positionName: '质检',
+      status: 'inactive',
+      hireDate: '2025-02-18',
+      leaveDate: '2025-10-30',
+      currentHourlyRate: '22.00',
+      notes: '演示离职员工',
       isDemo: true,
       createdAt: null,
     },
@@ -240,13 +370,14 @@ function buildRateHistory(employees: VirtualEmployee[]): VirtualRateHistory[] {
   let id = 1;
   return employees.flatMap(employee => {
     const current = Number(employee.currentHourlyRate ?? 0);
-    const firstRate = Math.max(18, current - 1).toFixed(2);
+    const firstRate = Math.max(18, current - 2).toFixed(2);
+    const midRate = Math.max(18, current - 1).toFixed(2);
     return [
       {
         id: id++,
         employeeId: employee.id,
         rate: firstRate,
-        effectiveDate: '2026-01-01',
+        effectiveDate: employee.hireDate,
         notes: '入职时薪',
         isDemo: true,
         createdAt: null,
@@ -254,8 +385,17 @@ function buildRateHistory(employees: VirtualEmployee[]): VirtualRateHistory[] {
       {
         id: id++,
         employeeId: employee.id,
+        rate: midRate,
+        effectiveDate: '2025-08-01',
+        notes: '演示调薪',
+        isDemo: true,
+        createdAt: null,
+      },
+      {
+        id: id++,
+        employeeId: employee.id,
         rate: employee.currentHourlyRate ?? firstRate,
-        effectiveDate: '2026-03-01',
+        effectiveDate: '2026-01-01',
         notes: '演示调薪',
         isDemo: true,
         createdAt: null,
@@ -298,18 +438,16 @@ const specialDays: Record<string, Record<number, { status: string; hours?: strin
 
 function workedHours(day: string, employeeIndex: number): string {
   const [, month, date] = day.split('-').map(Number);
-  const variants = [
-    ['8.0', '8.5', '8.0', '8.0'],
-    ['8.5', '8.0', '8.0', '8.5'],
-    ['9.0', '8.5', '8.0', '8.5'],
-    ['8.0', '9.0', '8.5', '8.0'],
-    ['9.5', '8.5', '8.0', '9.0'],
-  ];
-  return variants[(month + date) % variants.length][employeeIndex];
+  const bases = [8, 8.5, 8, 8, 7.5, 8, 8.5, 8, 7.5, 8, 8, 8.5];
+  const shifts = [0, 0.5, 0, 0, -0.5, 1, 0, 0.5];
+  const base = bases[employeeIndex % bases.length];
+  const shift = shifts[(month + date + employeeIndex) % shifts.length];
+  const value = Math.max(4, Math.min(10, base + shift));
+  return value.toFixed(1);
 }
 
 function buildAttendance(employees: VirtualEmployee[]): VirtualAttendanceRecord[] {
-  const start = '2026-01-01';
+  const start = '2025-01-01';
   const today = todayString();
   const end = today < start ? '2026-05-25' : today;
   const rows: VirtualAttendanceRecord[] = [];
@@ -319,6 +457,10 @@ function buildAttendance(employees: VirtualEmployee[]): VirtualAttendanceRecord[
     const [year, month, date] = day.split('-').map(Number);
     const dayOfWeek = new Date(year, month - 1, date).getDay();
     for (const [index, employee] of employees.entries()) {
+      if (day < employee.hireDate) continue;
+      if (employee.leaveDate && day > employee.leaveDate) continue;
+      const sparseFormerEmployee = employee.status === 'inactive' && ((date + employee.id + month) % 4 === 0);
+      if (sparseFormerEmployee && dayOfWeek !== 0) continue;
       const special = specialDays[day]?.[employee.id];
       const status = special?.status ?? (dayOfWeek === 0 ? 'holiday' : 'worked');
       rows.push({
@@ -358,6 +500,14 @@ function createStore(): VirtualStore {
       2: ['秀英'],
       3: ['慧明'],
       4: ['月琴'],
+      5: ['美珍'],
+      6: ['小兰'],
+      7: ['桂香'],
+      8: ['春梅'],
+      9: ['玉莲'],
+      10: ['强哥'],
+      11: ['阿敏'],
+      12: ['海燕'],
     },
     aiHistory: [],
     nextIds: {
@@ -399,6 +549,14 @@ export function createVirtualAdminUser(phone: string, passwordHash: string) {
 
 export function getVirtualAdminUser(phone: string) {
   const user = getStore().adminUsers.find(item => item.phone === phone);
+  return user ? { ...user } : null;
+}
+
+export function getVirtualInviteAdminUser(phone?: string) {
+  const store = getStore();
+  const user = phone
+    ? store.adminUsers.find(item => item.phone === phone)
+    : store.adminUsers[0];
   return user ? { ...user } : null;
 }
 
@@ -516,16 +674,12 @@ export function getVirtualRateHistory(employeeIds?: number[]) {
 }
 
 export function getVirtualLastWorkedHours(): Record<number, string> {
-  const result: Record<number, string> = {};
+  const today = todayString();
+  const startDate = addDays(today, -30);
   const records = getStore().attendance
     .filter(item => item.status === 'worked' && item.hours)
-    .sort((a, b) => b.workDate.localeCompare(a.workDate));
-  for (const record of records) {
-    if (record.employeeId && !result[record.employeeId] && record.hours) {
-      result[record.employeeId] = record.hours;
-    }
-  }
-  return result;
+    .filter(item => item.workDate >= startDate && item.workDate <= today);
+  return chooseTypicalWorkedHours(records);
 }
 
 export function getVirtualMonthHolidayDates(year: number, month: number): Set<string> {

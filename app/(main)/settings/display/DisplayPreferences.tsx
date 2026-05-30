@@ -11,15 +11,23 @@ const FONT_OPTIONS = [
 
 export default function DisplayPreferences() {
   const [fontLevel, setFontLevel] = useState(0);
+  const [celebration, setCelebration] = useState(true);
 
   useEffect(() => {
     const next = Number.parseInt(localStorage.getItem('clockin_fontsize') ?? '0', 10);
     setFontLevel(Number.isFinite(next) ? next : 0);
+    setCelebration(localStorage.getItem('clockin_celebration') !== 'off');
   }, []);
 
   const chooseFontLevel = (level: number) => {
     setFontLevel(level);
     localStorage.setItem('clockin_fontsize', String(level));
+  };
+
+  const toggleCelebration = () => {
+    const next = !celebration;
+    setCelebration(next);
+    localStorage.setItem('clockin_celebration', next ? 'on' : 'off');
   };
 
   return (
@@ -45,6 +53,22 @@ export default function DisplayPreferences() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[15px] font-semibold text-gray-800">考勤确认反馈</div>
+            <div className="mt-0.5 text-[12px] text-gray-400">保存时触发动画与音效</div>
+          </div>
+          <button
+            type="button"
+            onClick={toggleCelebration}
+            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${celebration ? 'bg-[#3370FF]' : 'bg-gray-200'}`}
+          >
+            <span className={`pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${celebration ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
         </div>
       </div>
 

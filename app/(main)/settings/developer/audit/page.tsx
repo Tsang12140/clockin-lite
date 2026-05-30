@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { listAuditFingerprints, listAuditLogs, type AuditFingerprintItem, type AuditLogItem } from '@/lib/audit';
 import { saveAuditNote } from './actions';
 
@@ -489,8 +489,12 @@ function FingerprintList({ fingerprints }: { fingerprints: AuditFingerprintItem[
                 placeholder="备注，比如：老板手机"
                 className="h-9 min-w-0 flex-1 rounded-lg bg-white px-3 text-[13px] font-normal text-gray-700 outline-none ring-1 ring-gray-100 focus:ring-[#3370FF]/30"
               />
-              <button className="h-9 rounded-lg bg-[#3370FF] px-3 text-[13px] font-medium text-white">
-                保存
+              <button className={`h-9 rounded-lg px-3 text-[13px] font-medium ${
+                item.note
+                  ? 'bg-white text-[#1A3A8F] ring-1 ring-[#E4ECFF]'
+                  : 'bg-[#3370FF] text-white'
+              }`}>
+                {item.note ? '修改' : '备注'}
               </button>
             </form>
           </details>
@@ -521,12 +525,24 @@ export default async function AuditPage({ searchParams }: PageProps) {
             <h1 className="text-[17px] font-semibold text-[#1A3A8F]">操作日志</h1>
             <div className="mt-0.5 text-[12px] font-normal text-gray-400">用人话看登录、访问和关键操作</div>
           </div>
-          <Link
-            href={view === 'logs' ? '/settings/developer/audit?view=fingerprints' : '/settings/developer/audit'}
-            className="rounded-lg bg-[#E8EEF8] px-3 py-2 text-[13px] font-medium text-[#1A3A8F]"
-          >
-            {view === 'logs' ? '设备指纹' : '返回日志'}
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            {view === 'logs' && (
+              <a
+                href="/api/audit/export"
+                download
+                className="inline-flex h-9 items-center gap-1 rounded-lg bg-white px-3 text-[13px] font-medium text-[#1A3A8F] ring-1 ring-[#E4ECFF]"
+              >
+                <Download size={14} />
+                导出
+              </a>
+            )}
+            <Link
+              href={view === 'logs' ? '/settings/developer/audit?view=fingerprints' : '/settings/developer/audit'}
+              className="rounded-lg bg-[#E8EEF8] px-3 py-2 text-[13px] font-medium text-[#1A3A8F]"
+            >
+              {view === 'logs' ? '设备指纹' : '返回日志'}
+            </Link>
+          </div>
         </div>
 
         <div className="px-3 py-3 md:px-0">
