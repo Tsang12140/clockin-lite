@@ -122,6 +122,9 @@ export const tenantConfig = clockinSchema.table('tenant_config', {
   overtimeLegalHolidayMultiplier: numeric('overtime_legal_holiday_multiplier', { precision: 3, scale: 2 }).default('1.00').notNull(),
   developerMode:                  boolean('developer_mode').default(false).notNull(),
   demoMode:                       boolean('demo_mode').default(false).notNull(),
+  inviteLoginEnabled:             boolean('invite_login_enabled').default(false).notNull(),
+  inviteCode:                     text('invite_code'),
+  inviteLoginPhone:               text('invite_login_phone'),
   setupCompletedAt:               timestamp('setup_completed_at', { withTimezone: true }),
   updatedAt:                      timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

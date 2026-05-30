@@ -9,19 +9,11 @@ import {
   recordLoginAttempt,
   pruneOldLoginAttempts,
 } from '@/lib/loginRateLimit';
-import { getFactoryShortName } from '@/lib/tenant';
+import { getFactoryShortName, getInviteLoginSettings } from '@/lib/tenant';
 
 type LoginResult =
   | { ok: true }
   | { ok: false; error: 'format' | 'rate-limited' | 'invalid' | 'disabled' };
-
-function isInviteLoginEnabled(): boolean {
-  return ['1', 'true', 'yes', 'on'].includes(String(process.env.INVITE_LOGIN_ENABLED ?? '').trim().toLowerCase());
-}
-
-function getInviteCode(): string {
-  return String(process.env.INVITE_CODE ?? '').trim();
-}
 
 async function saveLoginSession(user: { id: string; phone: string; role: string }, action: 'login' | 'invite_login') {
   const factoryName = await getFactoryShortName();
@@ -98,7 +90,8 @@ export async function inviteLogin(formData: FormData): Promise<LoginResult> {
   const deviceId  = String(formData.get('deviceId') ?? '').trim() || null;
   const browserFp = String(formData.get('browserFingerprint') ?? '').trim() || null;
 
-  if (!isInviteLoginEnabled()) return { ok: false, error: 'disabled' };
+  const inviteSettings = await getInviteLoginSettings();
+  if (!inviteSettings.enabled) return { ok: false, error: 'disabled' };
   if (!inviteCode) return { ok: false, error: 'format' };
 
   const ctx = await getServerClientContext();
@@ -111,7 +104,7 @@ export async function inviteLogin(formData: FormData): Promise<LoginResult> {
   });
   if (rl.blocked) return { ok: false, error: 'rate-limited' };
 
-  const expectedCode = getInviteCode();
+  const expectedCode = inviteSettings.code;
   const success = Boolean(expectedCode) && inviteCode.toLowerCase() === expectedCode.toLowerCase();
 
   await recordLoginAttempt({
@@ -125,7 +118,7 @@ export async function inviteLogin(formData: FormData): Promise<LoginResult> {
 
   if (!success) return { ok: false, error: 'invalid' };
 
-  const user = await getInviteLoginUser(process.env.INVITE_LOGIN_PHONE);
+  const user = await getInviteLoginUser(inviteSettings.phone);
   if (!user) return { ok: false, error: 'invalid' };
 
   try {

@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { ChevronLeft, ChevronRight, Edit2, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import type { WeatherSnapshot } from '@/lib/weather';
 import { addDays, getMonday, getWeekDays } from '@/lib/utils';
 import { loadMonthData, saveAttendance, unlockDay } from './actions';
@@ -479,8 +479,7 @@ export default function DesktopView({
                   <div className="text-[13px] font-semibold text-gray-500">考勤录入</div>
                   <div className="mt-1 flex items-center gap-2 min-w-0">
                     {locked && <Lock size={16} className="text-gray-400 shrink-0" />}
-                    {!locked && hasRecs && <Edit2 size={16} className="text-[#3370FF] shrink-0" />}
-                    <span className={`truncate text-[22px] font-bold ${locked ? 'text-gray-700' : hasRecs ? 'text-[#3370FF]' : 'text-[#1A3A8F]'}`}>
+                    <span className={`truncate text-[22px] font-bold ${locked ? 'text-gray-700' : 'text-[#1A3A8F]'}`}>
                       {displayDate ?? '请选择日期'}
                     </span>
                   </div>

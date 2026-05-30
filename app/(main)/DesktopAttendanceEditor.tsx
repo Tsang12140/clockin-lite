@@ -197,7 +197,7 @@ export default function DesktopAttendanceEditor({
                               type="button"
                               onClick={() => selectStatus(emp.id, option.value)}
                               className={`flex h-9 w-full items-center justify-between px-3 text-left text-[14px] font-semibold transition
-                                ${isGlobalAction ? 'mt-1 border-t border-gray-100 text-amber-600' : 'text-gray-700'}
+                                ${isGlobalAction ? 'mt-1 border-t border-emerald-100 bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100' : 'text-gray-700'}
                                 ${isActive ? 'bg-blue-50 text-[#3370FF]' : 'hover:bg-[#F8FAFF]'}`}
                             >
                               <span>{option.label}</span>

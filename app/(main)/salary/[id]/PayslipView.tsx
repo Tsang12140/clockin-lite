@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ImageDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, ImageDown } from 'lucide-react';
 import { effectiveRate } from '@/lib/utils';
 import type { WorkScheduleConfig } from '@/db/schema';
 import type { OvertimeMultipliers } from '@/lib/overtime';
@@ -54,6 +54,7 @@ export default function PayslipView({
   const router  = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
+  const [sensitiveVisible, setSensitiveVisible] = useState(true);
 
   const empIdx  = allEmps.findIndex(e => e.id === emp.id);
   const prevEmp = empIdx > 0 ? allEmps[empIdx - 1] : null;
@@ -183,6 +184,15 @@ export default function PayslipView({
           <ChevronLeft size={20} />
         </button>
         <h1 className="flex-1 text-[17px] font-semibold text-[#1A3A8F]">工资条</h1>
+        <button
+          type="button"
+          onClick={() => setSensitiveVisible(v => !v)}
+          className="mr-2 flex h-9 w-9 items-center justify-center rounded-xl bg-[#F0F4FA] text-[#3370FF] active:bg-[#E6EEFF]"
+          aria-label={sensitiveVisible ? '隐藏工资和时薪' : '显示工资和时薪'}
+          title={sensitiveVisible ? '隐藏工资和时薪' : '显示工资和时薪'}
+        >
+          {sensitiveVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
         <button onClick={saveImage} disabled={saving}
           className="flex items-center gap-1.5 text-[14px] text-[#3370FF] font-medium disabled:opacity-50">
           <ImageDown size={16} />
@@ -301,13 +311,13 @@ export default function PayslipView({
             ) : (
               salarySegs.map((seg, i) => (
                 <div key={i} className="text-[13px] text-gray-500 mb-1">
-                  {seg.label} {fmtH(seg.hours)} 小时 × ¥{seg.rate.toFixed(2)}
-                  {seg.multiplier !== 1 ? ` × ${seg.multiplier.toFixed(2)}` : ''} = ¥{seg.wage.toFixed(2)}
+                  {seg.label} {fmtH(seg.hours)} 小时 × {sensitiveVisible ? `¥${seg.rate.toFixed(2)}` : '已隐藏'} /小时
+                  {seg.multiplier !== 1 ? ` × ${seg.multiplier.toFixed(2)}` : ''} = {sensitiveVisible ? `¥${seg.wage.toFixed(2)}` : '已隐藏'}
                 </div>
               ))
             )}
             <div className="text-[26px] font-bold text-[#1A3A8F] mt-2">
-              ¥{totalWage.toFixed(2)}
+              {sensitiveVisible ? `¥${totalWage.toFixed(2)}` : '已隐藏'}
             </div>
             <button
               type="button"

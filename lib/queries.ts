@@ -15,6 +15,7 @@ import {
   getVirtualAttendanceForRange,
   getVirtualEmployeeDetailData,
   getVirtualLastWorkedHours,
+  getVirtualMonthLegalHolidayDates,
   getVirtualMonthAdjustedWorkdayDates,
   getVirtualMonthHolidayDates,
   getVirtualMonthlySalary,
@@ -299,9 +300,15 @@ export async function getAllEmployees() {
       .leftJoin(positions, eq(employees.positionId, positions.id))
       .where(eq(employees.isDemo, demoMode))
       .orderBy(employees.status, employees.id);
-    return withLocalPreviewNames(rows);
+    const previewRows = withLocalPreviewNames(rows);
+    const aliasMap = await getEmployeeAliasMap(previewRows.map(row => row.id));
+    return previewRows.map(row => ({ ...row, aliases: aliasMap[row.id] ?? [] }));
   } catch (e) {
-    if (canUseDevFallback(e)) return withLocalPreviewNames(devEmployees);
+    if (canUseDevFallback(e)) {
+      const rows = withLocalPreviewNames(devEmployees);
+      const aliasMap = await getEmployeeAliasMap(rows.map(row => row.id));
+      return rows.map(row => ({ ...row, aliases: aliasMap[row.id] ?? [] }));
+    }
     throw e;
   }
 }
@@ -490,7 +497,7 @@ export async function getMonthlySalary(year: number, month: number) {
     getAllEmployees(),
     getWorkSchedule(),
     getOvertimeMultipliers(),
-    getMonthHolidayDates(year, month),
+    getMonthLegalHolidayDates(year, month),
     getMonthAdjustedWorkdayDates(year, month),
   ]);
   const rateHist = await getRateHistory(emps.map(e => e.id));
@@ -568,7 +575,7 @@ export async function getPayslipData(empId: number, year: number, month: number)
       db.select({ id: employees.id, name: employees.name })
         .from(employees).where(and(eq(employees.status, 'active'), eq(employees.isDemo, demoMode))).orderBy(sql`${employees.id} asc`),
       getWorkSchedule(),
-      getMonthHolidayDates(year, month),
+      getMonthLegalHolidayDates(year, month),
       getMonthAdjustedWorkdayDates(year, month),
       getOvertimeMultipliers(),
     ]);
@@ -637,12 +644,39 @@ export async function getMonthHolidayDates(year: number, month: number): Promise
   try {
     const demoMode = await isDemoModeEnabled();
     const rows = await db
-      .select({ date: holidays.date })
+      .select({ date: holidays.date, type: holidays.type })
       .from(holidays)
       .where(and(gte(holidays.date, start), lte(holidays.date, end), eq(holidays.isDemo, demoMode)));
     return new Set([
       ...builtInDates,
-      ...rows.map(r => r.date).filter((d): d is string => d !== null),
+      ...rows
+        .filter(r => r.type !== 'workday')
+        .map(r => r.date)
+        .filter((d): d is string => d !== null),
+    ]);
+  } catch {
+    return builtInDates;
+  }
+}
+
+export async function getMonthLegalHolidayDates(year: number, month: number): Promise<Set<string>> {
+  if (isVirtualDbEnabled()) return getVirtualMonthLegalHolidayDates(year, month);
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const builtInDates = getChinaHolidayDatesForMonth(year, month);
+  try {
+    const demoMode = await isDemoModeEnabled();
+    const rows = await db
+      .select({ date: holidays.date, type: holidays.type })
+      .from(holidays)
+      .where(and(gte(holidays.date, start), lte(holidays.date, end), eq(holidays.isDemo, demoMode)));
+    return new Set([
+      ...builtInDates,
+      ...rows
+        .filter(r => r.type === 'legal')
+        .map(r => r.date)
+        .filter((d): d is string => d !== null),
     ]);
   } catch {
     return builtInDates;
@@ -651,5 +685,24 @@ export async function getMonthHolidayDates(year: number, month: number): Promise
 
 export async function getMonthAdjustedWorkdayDates(year: number, month: number): Promise<Set<string>> {
   if (isVirtualDbEnabled()) return getVirtualMonthAdjustedWorkdayDates(year, month);
-  return getChinaAdjustedWorkdayDatesForMonth(year, month);
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const builtInDates = getChinaAdjustedWorkdayDatesForMonth(year, month);
+  try {
+    const demoMode = await isDemoModeEnabled();
+    const rows = await db
+      .select({ date: holidays.date, type: holidays.type })
+      .from(holidays)
+      .where(and(gte(holidays.date, start), lte(holidays.date, end), eq(holidays.isDemo, demoMode)));
+    return new Set([
+      ...builtInDates,
+      ...rows
+        .filter(r => r.type === 'workday')
+        .map(r => r.date)
+        .filter((d): d is string => d !== null),
+    ]);
+  } catch {
+    return builtInDates;
+  }
 }

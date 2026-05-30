@@ -49,6 +49,9 @@ export async function ensureTenantTables(): Promise<void> {
           overtime_legal_holiday_multiplier NUMERIC(3,2) NOT NULL DEFAULT 1.00,
           developer_mode                    BOOLEAN NOT NULL DEFAULT FALSE,
           demo_mode                         BOOLEAN NOT NULL DEFAULT FALSE,
+          invite_login_enabled              BOOLEAN NOT NULL DEFAULT FALSE,
+          invite_code                       TEXT,
+          invite_login_phone                TEXT,
           setup_completed_at                TIMESTAMPTZ,
           updated_at                        TIMESTAMPTZ DEFAULT NOW(),
           CONSTRAINT tenant_config_singleton CHECK (id = 1)
@@ -72,7 +75,10 @@ export async function ensureTenantTables(): Promise<void> {
         ADD COLUMN IF NOT EXISTS overtime_weekend_multiplier NUMERIC(3,2) NOT NULL DEFAULT 1.00,
         ADD COLUMN IF NOT EXISTS overtime_legal_holiday_multiplier NUMERIC(3,2) NOT NULL DEFAULT 1.00,
         ADD COLUMN IF NOT EXISTS developer_mode BOOLEAN NOT NULL DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS demo_mode BOOLEAN NOT NULL DEFAULT FALSE
+        ADD COLUMN IF NOT EXISTS demo_mode BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS invite_login_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS invite_code TEXT,
+        ADD COLUMN IF NOT EXISTS invite_login_phone TEXT
       `);
       await db.execute(sql`
         ALTER TABLE clockin.tenant_config
@@ -354,6 +360,9 @@ type TenantRow = {
   overtime_legal_holiday_multiplier: string;
   developer_mode: boolean;
   demo_mode: boolean;
+  invite_login_enabled: boolean;
+  invite_code: string | null;
+  invite_login_phone: string | null;
   setup_completed_at: string | Date | null;
   updated_at: string | Date | null;
 };
@@ -382,6 +391,9 @@ function mapRow(row: TenantRow): TenantConfig {
     overtimeLegalHolidayMultiplier: row.overtime_legal_holiday_multiplier,
     developerMode: row.developer_mode,
     demoMode: row.demo_mode,
+    inviteLoginEnabled: row.invite_login_enabled,
+    inviteCode: row.invite_code,
+    inviteLoginPhone: row.invite_login_phone,
     setupCompletedAt: row.setup_completed_at as TenantConfig['setupCompletedAt'],
     updatedAt: row.updated_at as TenantConfig['updatedAt'],
   };
@@ -450,6 +462,9 @@ type UpsertInput = Partial<{
   overtimeLegalHolidayMultiplier: string;
   developerMode: boolean;
   demoMode: boolean;
+  inviteLoginEnabled: boolean;
+  inviteCode: string | null;
+  inviteLoginPhone: string | null;
 }>;
 
 export async function upsertTenantConfig(patch: UpsertInput): Promise<void> {
@@ -544,4 +559,23 @@ export async function getWorkTimes(): Promise<WorkTimes> {
 export async function getSalaryPayDay(): Promise<number> {
   const config = await getTenantConfig();
   return config?.salaryPayDay ?? 15;
+}
+
+function truthyEnv(value: unknown): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase());
+}
+
+export type InviteLoginSettings = {
+  enabled: boolean;
+  code: string;
+  phone: string;
+};
+
+export async function getInviteLoginSettings(): Promise<InviteLoginSettings> {
+  const config = await getTenantConfig();
+  return {
+    enabled: Boolean(config?.inviteLoginEnabled) || truthyEnv(process.env.INVITE_LOGIN_ENABLED),
+    code: config?.inviteCode?.trim() || String(process.env.INVITE_CODE ?? '').trim(),
+    phone: config?.inviteLoginPhone?.trim() || String(process.env.INVITE_LOGIN_PHONE ?? '').trim(),
+  };
 }

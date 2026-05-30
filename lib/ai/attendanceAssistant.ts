@@ -1,4 +1,4 @@
-import { getActiveEmployees, getAttendanceForRange, getMonthAdjustedWorkdayDates, getMonthHolidayDates, getMonthlySalary } from '@/lib/queries';
+import { getActiveEmployees, getAllEmployees, getAttendanceForRange, getMonthAdjustedWorkdayDates, getMonthHolidayDates, getMonthlySalary } from '@/lib/queries';
 import { monthRange, todayString } from '@/lib/utils';
 import { getAIAvailability, getAIProviderConfig, type AIConfigSession, type AIProviderConfig } from '@/lib/ai/config';
 import { getFactsCache, setFactsCache } from '@/lib/ai/factsCache';
@@ -145,6 +145,10 @@ function normalizeText(value: string) {
     .replace(/[，。！？、,.!?？\s]/g, '');
 }
 
+function mentionsFormerEmployee(message: string) {
+  return /离职|已离职|离职了|前员工|以前的|之前的/.test(message);
+}
+
 function formatHours(value: number) {
   return value % 1 === 0 ? String(value) : value.toFixed(1);
 }
@@ -229,21 +233,89 @@ function parseMonthTarget(message: string, now = new Date()): MonthTarget {
   return { year: currentYear, month: currentMonth };
 }
 
-function matchEmployee(message: string, employees: EmployeeStub[]) {
-  const normalized = normalizeText(message);
+type EmployeeMatch = {
+  employee: EmployeeStub;
+  matchedAliases: string[];
+  hasAliasHit: boolean;
+};
 
-  for (const employee of employees) {
-    const aliases = [employee.name, ...(employee.aliases ?? []), ...(EMPLOYEE_ALIASES[employee.id] ?? [])];
-    if (aliases.some(alias => alias && normalized.includes(normalizeText(alias)))) {
-      return employee;
-    }
-  }
+function collectEmployeeMatches(message: string, employees: EmployeeStub[]): EmployeeMatch[] {
+  const normalized = normalizeText(message);
+  if (!normalized) return [];
+
+  return employees
+    .map(employee => {
+      const name = employee.name ?? '';
+      const normalizedName = normalizeText(name);
+      const seenAliases = new Set<string>();
+      const aliases = [name, ...(employee.aliases ?? []), ...(EMPLOYEE_ALIASES[employee.id] ?? [])]
+        .filter(alias => {
+          const key = normalizeText(alias || '');
+          if (!key || seenAliases.has(key)) return false;
+          seenAliases.add(key);
+          return true;
+        });
+      const matchedAliases = aliases.filter(alias => normalized.includes(normalizeText(alias)));
+      return {
+        employee,
+        matchedAliases,
+        hasAliasHit: matchedAliases.some(alias => normalizeText(alias) !== normalizedName),
+      };
+    })
+    .filter(match => match.matchedAliases.length > 0);
+}
+
+function preferEmployeeMatches(message: string, matches: EmployeeMatch[]) {
+  if (matches.length <= 1) return matches;
+  const wantsFormer = mentionsFormerEmployee(message);
+  const statusFiltered = wantsFormer
+    ? matches.filter(match => match.employee.status && match.employee.status !== 'active')
+    : matches.filter(match => match.employee.status === 'active');
+  const scoped = statusFiltered.length > 0 ? statusFiltered : matches;
+  const aliasHits = scoped.filter(match => match.hasAliasHit);
+  return aliasHits.length > 0 ? aliasHits : scoped;
+}
+
+function formatEmployeeChoice(employee: EmployeeStub, index: number) {
+  const status = employee.status === 'active' ? '在职' : '离职';
+  const aliases = (employee.aliases ?? []).filter(alias => alias && alias !== employee.name);
+  const aliasText = aliases.length > 0 ? ` · 花名：${aliases.slice(0, 2).join('、')}` : '';
+  const positionText = employee.positionName ? ` · ${employee.positionName}` : '';
+  const hireText = employee.hireDate ? ` · 入职 ${employee.hireDate.slice(0, 7)}` : '';
+  return `${index}. ${employee.name} · ${status}${positionText}${aliasText}${hireText}`;
+}
+
+function disambiguateEmployeeReply(candidates: EmployeeStub[], target: MonthTarget) {
+  const picked = candidates.slice(0, 5);
+  const lines = picked.map((employee, index) => formatEmployeeChoice(employee, index + 1));
+  const actions = picked.map((employee, index) => ({
+    type: 'OPEN_PAYSLIP' as const,
+    label: `查第 ${index + 1} 位`,
+    href: `/salary/${employee.id}?year=${target.year}&month=${target.month}`,
+  }));
+  return {
+    reply: `我找到 ${candidates.length} 位同名或同花名员工，请选一下要查哪位：\n${lines.join('\n')}`,
+    actions,
+    mode: 'ai' as const,
+  };
+}
+
+function ambiguousEmployeeMatches(message: string, employees: EmployeeStub[]) {
+  const matches = preferEmployeeMatches(message, collectEmployeeMatches(message, employees));
+  return matches.length > 1 ? matches.map(match => match.employee) : [];
+}
+
+function matchEmployee(message: string, employees: EmployeeStub[]) {
+  const matches = preferEmployeeMatches(message, collectEmployeeMatches(message, employees));
+  if (matches.length === 1) return matches[0].employee;
 
   const surnameMatch = message.match(/姓\s*([\u4e00-\u9fa5])/);
   if (surnameMatch) {
     const surname = surnameMatch[1];
     const matched = employees.filter(employee => employee.name?.startsWith(surname));
-    if (matched.length === 1) return matched[0];
+    const activeMatched = matched.filter(employee => employee.status === 'active');
+    const scoped = activeMatched.length > 0 && !mentionsFormerEmployee(message) ? activeMatched : matched;
+    if (scoped.length === 1) return scoped[0];
   }
 
   return null;
@@ -273,10 +345,10 @@ function getDaysToInspect(
   return days;
 }
 
-async function buildMonthFacts(target: MonthTarget) {
+async function buildMonthFacts(target: MonthTarget, includeFormer = false) {
   const { start, end } = monthRange(target.year, target.month);
   const [employees, salary, records, workScheduleConfig, holidayDates, adjustedWorkdayDates] = await Promise.all([
-    getActiveEmployees(),
+    includeFormer ? getAllEmployees() : getActiveEmployees(),
     getMonthlySalary(target.year, target.month),
     getAttendanceForRange(start, end),
     getWorkSchedule(),
@@ -1117,6 +1189,15 @@ async function executePlan(
 
   const target = resolvePlanTarget(plan, question);
   const actions: AssistantAction[] = [];
+  const ambiguousEmployees = ambiguousEmployeeMatches(question, employees);
+  if (ambiguousEmployees.length > 1 && [
+    'QUERY_EMPLOYEE_MONTH',
+    'OPEN_EMPLOYEE',
+    'OPEN_PAYSLIP',
+    'QUERY_EMPLOYEE_PROFILE',
+  ].includes(plan.intent)) {
+    return { ...disambiguateEmployeeReply(ambiguousEmployees, target), planContext: plan };
+  }
   const employeeScope = resolveEmployeeScope(plan, employees);
   const urlEmpId = employeeIdFromUrl(pageUrl);
   const employee = employeeScope.employee
@@ -1188,14 +1269,14 @@ async function executePlan(
     return { reply: `已打开${target.year}年${target.month}月工资。`, actions, mode: 'ai', planContext: plan, autoNavigate: true };
   }
 
-  const facts = await buildMonthFacts(target);
+  const facts = await buildMonthFacts(target, mentionsFormerEmployee(question));
   const scopedFacts = scopeMonthFacts(facts, employeeScope.scope);
 
   if (plan.intent === 'QUERY_EMPLOYEE_MONTH') {
     if (!employee) {
-      const names = employeeScope.scope.map((e, i) => `${i + 1}. ${e.name}`).join('、');
+      const names = employeeScope.scope.map((e, i) => formatEmployeeChoice(e, i + 1)).join('\n');
       return {
-        reply: `找到${employeeScope.scope.length}位：${names}。请说名字告诉我查哪一位？`,
+        reply: `找到${employeeScope.scope.length}位，请说清楚要查哪一位：\n${names}`,
         actions: [],
         mode: 'ai',
         planContext: plan,
@@ -1317,7 +1398,9 @@ export async function* answerAttendanceAssistantStream(
 
   if (aiConfig) {
     try {
-      const employeesForPlan = await getActiveEmployees();
+      const employeesForPlan = mentionsFormerEmployee(cleaned)
+        ? await getAllEmployees()
+        : await getActiveEmployees();
       const plans = await planWithAI(cleaned, employeesForPlan, aiConfig, history, lastPlan, pageUrl);
       if (plans.length > 0) {
         for (const plan of plans) {
@@ -1342,9 +1425,19 @@ export async function* answerAttendanceAssistantStream(
   }
 
   const target = parseMonthTarget(cleaned);
-  const facts = await buildMonthFacts(target);
+  const facts = await buildMonthFacts(target, mentionsFormerEmployee(cleaned));
   const employee = matchEmployee(cleaned, facts.employees);
   const actions: AssistantAction[] = [];
+  const ambiguousEmployees = ambiguousEmployeeMatches(cleaned, facts.employees);
+
+  if (ambiguousEmployees.length > 1 && (
+    isPayslipIntent(cleaned)
+    || isOpenEmployeeIntent(cleaned)
+    || /工资|薪资|工时|小时|考勤|上班|请假|病假|旷工/.test(cleaned)
+  )) {
+    yield disambiguateEmployeeReply(ambiguousEmployees, target);
+    return;
+  }
 
   if (employee && isPayslipIntent(cleaned)) {
     actions.push({ type: 'OPEN_PAYSLIP', label: '打开工资条', href: `/salary/${employee.id}?year=${target.year}&month=${target.month}` });

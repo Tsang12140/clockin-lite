@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, Lock, Edit2, Check, Trash2, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, Check, Trash2, ChevronDown } from 'lucide-react';
 import { saveAttendance, unlockDay, loadWeekData, clearAttendanceDay } from './actions';
 import { getMonday, addDays, getWeekDays } from '@/lib/utils';
 import { findWeatherDay, getWeatherDecisionForDay, getWeatherEmoji } from '@/lib/weather';
@@ -760,7 +760,7 @@ export default function TodayEntry({
                                 type="button"
                                 onClick={() => { setOpenDropdownId(null); setStatus(emp.id, option.value); }}
                                 className={`flex h-10 w-full items-center justify-between px-3.5 text-left text-[13px] font-semibold transition
-                                  ${isGlobalAction ? 'mt-1 border-t border-gray-100 text-emerald-600' : option.value === 'absent' ? 'text-red-500' : 'text-gray-700'}
+                                  ${isGlobalAction ? 'mt-1 border-t border-emerald-100 bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100' : option.value === 'absent' ? 'text-red-500' : 'text-gray-700'}
                                   ${isActive ? 'bg-blue-50 text-[#3370FF]' : 'hover:bg-[#F8FAFF]'}`}
                               >
                                 <span>{option.label}</span>
@@ -802,8 +802,6 @@ export default function TodayEntry({
             <><Lock size={13} className="text-gray-400" /><span className="text-[14px] font-semibold leading-none text-gray-500">{displayDate}</span></>
           ) : hasRecs ? (
             <>
-              <Edit2 size={13} className="text-[#3370FF]" />
-              <span className="text-[14px] font-semibold leading-none text-[#3370FF]">{displayDate}</span>
               <button
                 type="button"
                 onClick={handleClearDay}
@@ -824,11 +822,11 @@ export default function TodayEntry({
         <div className="flex justify-end">
           {locked
             ? <button onClick={handleUnlock} disabled={isSaving}
-                className="h-8 px-5 bg-white border border-gray-200 text-gray-700 text-[14px] font-semibold leading-none rounded-xl shadow-sm disabled:opacity-60">
+                className="h-8 min-w-[64px] whitespace-nowrap bg-white border border-gray-200 text-gray-700 text-[14px] font-semibold leading-none rounded-xl shadow-sm disabled:opacity-60">
                 修改
               </button>
             : <button onClick={handleSave} disabled={isSaving}
-                className="h-8 px-6 bg-[#3370FF] text-white text-[14px] font-semibold leading-none rounded-xl shadow-sm disabled:opacity-60">
+                className="h-8 min-w-[72px] whitespace-nowrap bg-[#3370FF] text-white text-[14px] font-semibold leading-none rounded-xl shadow-sm disabled:opacity-60">
                 {isSaving ? '…' : '保存'}
               </button>
           }

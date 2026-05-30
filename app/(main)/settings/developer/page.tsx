@@ -14,6 +14,7 @@ function DeveloperLinks() {
     { href: '/settings/developer/attendance-preview', title: '考勤卡片预览', desc: '保存完成效果' },
     { href: '/settings/developer/attendance-desktop-preview', title: '考勤卡片预览（桌面端）', desc: '桌面录入表保存效果' },
     { href: '/settings/developer/audit', title: '操作日志', desc: '登录、访问、工时和设备指纹' },
+    { href: '/settings/developer/invite', title: '邀请体验', desc: '邀请码登录开关与邀请码' },
   ];
 
   return (

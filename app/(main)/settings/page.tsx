@@ -12,6 +12,7 @@ import {
   Clock3,
   DatabaseBackup,
   FlaskConical,
+  KeyRound,
   LogOut,
   Palette,
   ShieldCheck,
@@ -44,6 +45,7 @@ const GROUPS: Array<{ title: string; items: SettingsCard[] }> = [
     title: '考勤规则',
     items: [
       { href: '/settings/schedule', title: '排班制度', desc: '单休、双休、大小周', icon: CalendarDays, tone: 'bg-[#EEF2FF] text-[#3370FF]' },
+      { href: '/settings/schedule-calendar', title: '排班日历', desc: '节假日、厂休日、调休', icon: CalendarDays, tone: 'bg-[#F0FDF4] text-[#16A34A]' },
       { href: '/settings/work-time', title: '工作时间', desc: '上下班、午休', icon: Clock3, tone: 'bg-[#F0F9FF] text-[#0077AA]' },
       { href: '/settings/overtime', title: '薪资规则', desc: '正常、加班、节假日', icon: BadgeDollarSign, tone: 'bg-[#FFF1F0] text-[#D83A31]' },
     ],
@@ -53,6 +55,7 @@ const GROUPS: Array<{ title: string; items: SettingsCard[] }> = [
     items: [
       { href: '/settings/weather', title: '天气配置', desc: 'QWeather、位置', icon: Sparkles, tone: 'bg-[#F4F0FF] text-[#7C3AED]' },
       { href: '/settings/ai', title: 'AI 助手', desc: '...', icon: Bot, tone: 'bg-[#ECFDF5] text-[#059669]' },
+      { href: '/settings/developer/invite', title: '邀请体验', desc: '邀请码登录', icon: KeyRound, tone: 'bg-[#FFF7ED] text-[#EA580C]' },
     ],
   },
   {

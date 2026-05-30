@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { CalendarDays, X } from 'lucide-react';
 import type { HolidayNotice as HolidayNoticeData } from '@/lib/chinaHolidays';
 
@@ -18,6 +19,8 @@ export default function HolidayNotice({ notice }: { notice: HolidayNoticeData | 
     localStorage.setItem(`clockin_holiday_notice_${notice.id}`, '1');
     setDismissed(true);
   };
+  const targetDate = notice.groups[0]?.startDate ?? new Date().toISOString().slice(0, 10);
+  const scheduleHref = `/settings/schedule-calendar?year=${targetDate.slice(0, 4)}&month=${Number(targetDate.slice(5, 7))}`;
 
   return (
     <div className="bg-[#FFF7E8] px-3 py-2 md:bg-transparent md:px-6 md:pt-5">
@@ -29,6 +32,13 @@ export default function HolidayNotice({ notice }: { notice: HolidayNoticeData | 
           <div className="text-[13px] font-semibold text-amber-700">{notice.title}</div>
           <div className="mt-0.5 truncate text-[12px] text-amber-600 md:whitespace-normal">{notice.message}</div>
         </div>
+        <Link
+          href={scheduleHref}
+          onClick={dismiss}
+          className="flex h-8 shrink-0 items-center rounded-xl bg-amber-50 px-3 text-[12px] font-semibold text-amber-700 hover:bg-amber-100"
+        >
+          排班日历
+        </Link>
         <button
           type="button"
           onClick={dismiss}

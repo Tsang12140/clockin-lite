@@ -156,6 +156,9 @@ function buildTenant(): TenantConfig {
     overtimeLegalHolidayMultiplier: '1.00',
     developerMode: false,
     demoMode: true,
+    inviteLoginEnabled: false,
+    inviteCode: 'merging',
+    inviteLoginPhone: '',
     setupCompletedAt: null,
     updatedAt: now,
   };
@@ -614,6 +617,7 @@ function employeeForList(employee: VirtualEmployee) {
     hireDate: employee.hireDate,
     leaveDate: employee.leaveDate,
     notes: employee.notes,
+    aliases: getVirtualAliasesForEmployee(employee.id),
   };
 }
 
@@ -690,12 +694,65 @@ export function getVirtualMonthHolidayDates(year: number, month: number): Set<st
     ...getChinaHolidayDatesForMonth(year, month),
     ...getStore().holidays
       .filter(item => item.date >= start && item.date <= end)
+      .filter(item => item.type !== 'workday')
       .map(item => item.date),
   ]);
 }
 
 export function getVirtualMonthAdjustedWorkdayDates(year: number, month: number): Set<string> {
-  return getChinaAdjustedWorkdayDatesForMonth(year, month);
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return new Set([
+    ...getChinaAdjustedWorkdayDatesForMonth(year, month),
+    ...getStore().holidays
+      .filter(item => item.date >= start && item.date <= end)
+      .filter(item => item.type === 'workday')
+      .map(item => item.date),
+  ]);
+}
+
+export function getVirtualMonthLegalHolidayDates(year: number, month: number): Set<string> {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return new Set([
+    ...getChinaHolidayDatesForMonth(year, month),
+    ...getStore().holidays
+      .filter(item => item.date >= start && item.date <= end)
+      .filter(item => item.type === 'legal')
+      .map(item => item.date),
+  ]);
+}
+
+export function getVirtualScheduleOverridesForMonth(year: number, month: number) {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return getStore().holidays
+    .filter(item => item.date >= start && item.date <= end)
+    .filter(item => item.type === 'factory_holiday' || item.type === 'workday')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(item => ({
+      date: item.date,
+      name: item.name,
+      type: item.type,
+    }));
+}
+
+export function saveVirtualScheduleOverride(date: string, type: 'factory_holiday' | 'workday' | 'default') {
+  const store = getStore();
+  store.holidays = store.holidays.filter(item => item.date !== date);
+  if (type === 'default') return;
+  store.holidays.push({
+    id: store.nextIds.holiday++,
+    date,
+    name: type === 'workday' ? '调休上班' : '厂休日',
+    type,
+    isPaid: type !== 'factory_holiday',
+    isDemo: false,
+    createdAt: new Date(),
+  });
 }
 
 export function getVirtualMonthlySalary(year: number, month: number) {
@@ -706,7 +763,7 @@ export function getVirtualMonthlySalary(year: number, month: number) {
   const employees = getVirtualAllEmployees();
   const rateHistory = getVirtualRateHistory(employees.map(employee => employee.id));
   const workSchedule = normalizeWorkSchedule(getVirtualWorkSchedule());
-  const legalHolidayDates = getVirtualMonthHolidayDates(year, month);
+  const legalHolidayDates = getVirtualMonthLegalHolidayDates(year, month);
   const adjustedWorkdayDates = getVirtualMonthAdjustedWorkdayDates(year, month);
   const multipliers = getVirtualOvertimeMultipliers();
 
@@ -778,7 +835,7 @@ export function getVirtualPayslipData(employeeId: number, year: number, month: n
       .filter(activeFilter)
       .map(item => ({ id: item.id, name: item.name })),
     workSchedule: normalizeWorkSchedule(getVirtualWorkSchedule()),
-    legalHolidayDates: [...getVirtualMonthHolidayDates(year, month)],
+    legalHolidayDates: [...getVirtualMonthLegalHolidayDates(year, month)],
     adjustedWorkdayDates: [...getVirtualMonthAdjustedWorkdayDates(year, month)],
     overtimeMultipliers: getVirtualOvertimeMultipliers(),
   };
